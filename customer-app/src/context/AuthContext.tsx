@@ -131,7 +131,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     sessionStorage.removeItem('customer-app:intended-role');
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: getOAuthRedirectUrl() },
+      options: {
+        redirectTo: getOAuthRedirectUrl(),
+        ...(flow === 'register' ? { queryParams: { prompt: 'select_account' } } : {}),
+      },
     });
     if (error) {
       clearAuthIntent();

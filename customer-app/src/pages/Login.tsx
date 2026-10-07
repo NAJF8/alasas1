@@ -9,7 +9,7 @@ export const Login = () => {
   const [error, setError] = useState<string | null>(null);
 
   if (loading) return <div className="min-h-screen grid place-items-center" dir="rtl"><Loader2 className="animate-spin text-primary-600" /></div>;
-  if (user) return <Navigate to={profile ? (isProfileComplete(profile) ? '/dashboard' : '/onboarding') : '/register'} replace />;
+  if (user) return <Navigate to={profile ? (profile.role !== 'PATIENT' && profile.role !== 'STUDENT' ? '/' : (isProfileComplete(profile) ? '/dashboard' : '/onboarding')) : '/register'} replace />;
 
   const handleGoogleLogin = async () => {
     setSubmitting(true);

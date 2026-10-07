@@ -14,7 +14,8 @@ export const Onboarding = () => {
   const { user, profile, loading, saveOnboarding, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const pendingRole = readAuthIntent()?.role as CustomerRole | undefined;
-  const role: CustomerRole | null = pendingRole || (profile?.role === 'STUDENT' ? 'STUDENT' : profile?.role === 'PATIENT' ? 'PATIENT' : null);
+  const profileRole = profile?.role === 'STUDENT' ? 'STUDENT' : profile?.role === 'PATIENT' ? 'PATIENT' : null;
+  const role: CustomerRole | null = profileRole || pendingRole || null;
   const [step, setStep] = useState(0);
   const [values, setValues] = useState<Values>(() => initialValues(user?.user_metadata?.full_name || user?.user_metadata?.name || ''));
   const [provinces, setProvinces] = useState<Option[]>([]); const [areas, setAreas] = useState<Option[]>([]); const [universities, setUniversities] = useState<Option[]>([]); const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -37,6 +38,7 @@ export const Onboarding = () => {
 
   if (loading || loadingData) return <div className="onboarding-loading" dir="rtl"><Loader2 className="animate-spin" size={26} /> جاري تجهيز حسابك...</div>;
   if (!user) return <Navigate to="/login" replace />;
+  if (profile && !profileRole) return <Navigate to="/" replace />;
   if (!role) return <Navigate to="/register" replace />;
   if (isProfileComplete(profile)) return <Navigate to="/dashboard" replace />;
 

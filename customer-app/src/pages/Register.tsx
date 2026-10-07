@@ -1,7 +1,7 @@
 import { ArrowLeft, GraduationCap, Loader2, UserRound } from 'lucide-react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { readAuthIntent, useAuth, type CustomerRole } from '../context/AuthContext';
+import { clearAuthIntent, isProfileComplete, readAuthIntent, useAuth, type CustomerRole } from '../context/AuthContext';
 
 const roles = [
   { role: 'PATIENT' as const, title: 'مريض', body: 'اعرض حالتك وابحث عن طالب طب أسنان مناسب بالقرب منك.', icon: UserRound, tone: 'register-card-blue' },
@@ -9,7 +9,7 @@ const roles = [
 ];
 
 export const Register = () => {
-  const { user, signInWithGoogle } = useAuth();
+  const { user, profile, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [selectedRole, setSelectedRole] = useState<CustomerRole | null>(readAuthIntent()?.role || null);
   const [busy, setBusy] = useState(false);
@@ -22,6 +22,11 @@ export const Register = () => {
     if (!selectedRole) { setError('اختر نوع الحساب أولاً.'); return; }
     localStorage.setItem('customer-app:auth-intent', JSON.stringify({ flow: 'register', role: selectedRole, createdAt: Date.now() }));
     if (user) {
+      if (profile) {
+        clearAuthIntent();
+        navigate(profile.role === 'PATIENT' || profile.role === 'STUDENT' ? (isProfileComplete(profile) ? '/dashboard' : '/onboarding') : '/');
+        return;
+      }
       navigate('/onboarding');
       return;
     }

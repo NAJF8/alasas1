@@ -15,7 +15,14 @@ const HomeRoute = () => {
   if (!loading && user) {
     const intent = readAuthIntent();
     if (intent) {
-      if (intent.flow === 'register') return <Navigate to="/onboarding" replace />;
+      if (intent.flow === 'register') {
+        if (profile) {
+          clearAuthIntent();
+          if (profile.role !== 'PATIENT' && profile.role !== 'STUDENT') return <Home />;
+          return <Navigate to={isProfileComplete(profile) ? '/dashboard' : '/onboarding'} replace />;
+        }
+        return <Navigate to="/onboarding" replace />;
+      }
       clearAuthIntent();
       if (profile) return <Navigate to={isProfileComplete(profile) ? '/dashboard' : '/onboarding'} replace />;
       return <Navigate to="/register" replace />;
