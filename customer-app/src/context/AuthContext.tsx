@@ -106,7 +106,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
     setLoading(true);
-    setProfile(await fetchProfile(session.user.id));
+    let nextProfile = await fetchProfile(session.user.id);
+    const intent = readAuthIntent();
+    if (nextProfile && intent?.flow === 'register' && intent.role && (nextProfile.role === 'PATIENT' || nextProfile.role === 'STUDENT') && !isProfileComplete(nextProfile)) {
+      if (nextProfile.role !== intent.role) {
+        const { error: roleError } = await supabase.from('profiles').update({ role: intent.role }).eq('id', session.user.id);
+        if (roleError) console.error('Registration role resolution error:', roleError.message);
+        else {
+          nextProfile = await fetchProfile(session.user.id);
+          clearAuthIntent();
+        }
+      } else {
+        clearAuthIntent();
+      }
+    }
+    setProfile(nextProfile);
     setLoading(false);
   }, [fetchProfile]);
 
