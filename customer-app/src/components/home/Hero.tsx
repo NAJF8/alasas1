@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Activity, Stethoscope, UserPlus } from 'lucide-react';
 
-export const Hero = () => {
+export const Hero = ({ accountAction }: { accountAction?: React.ReactNode }) => {
   return (
     <div className="relative bg-white overflow-hidden">
       <div className="max-w-7xl mx-auto">
@@ -19,24 +19,26 @@ export const Hero = () => {
                 النظام الذكي يساعد الإدارة على إيجاد أفضل تطابق.
               </p>
               <div className="mt-8 sm:flex sm:justify-center lg:justify-start gap-4">
-                <div className="rounded-md shadow">
-                  <Link
-                    to="/register/patient"
-                    className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-primary-600 hover:bg-primary-700 md:py-4 md:text-lg transition-all"
-                  >
-                    <UserPlus className="ml-2 w-5 h-5" />
-                    لدي حالة وأحتاج علاج
-                  </Link>
-                </div>
-                <div className="mt-3 sm:mt-0">
-                  <Link
-                    to="/register/student"
-                    className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-lg text-primary-700 bg-primary-100 hover:bg-primary-200 md:py-4 md:text-lg transition-all"
-                  >
-                    <Stethoscope className="ml-2 w-5 h-5" />
-                    أبحث عن حالة سريرية
-                  </Link>
-                </div>
+                {accountAction || <>
+                  <div className="rounded-md shadow">
+                    <Link
+                      to="/register/patient"
+                      className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-primary-600 hover:bg-primary-700 md:py-4 md:text-lg transition-all"
+                    >
+                      <UserPlus className="ml-2 w-5 h-5" />
+                      لدي حالة وأحتاج علاج
+                    </Link>
+                  </div>
+                  <div className="mt-3 sm:mt-0">
+                    <Link
+                      to="/register/student"
+                      className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-lg text-primary-700 bg-primary-100 hover:bg-primary-200 md:py-4 md:text-lg transition-all"
+                    >
+                      <Stethoscope className="ml-2 w-5 h-5" />
+                      أبحث عن حالة سريرية
+                    </Link>
+                  </div>
+                </>}
               </div>
             </div>
           </main>

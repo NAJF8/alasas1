@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import type { Session, User } from '@supabase/supabase-js';
 import { getOAuthRedirectUrl, supabase } from '../lib/supabase';
 
-export type CustomerRole = 'PATIENT' | 'STUDENT' | 'DENTIST';
+export type CustomerRole = 'PATIENT' | 'STUDENT';
 
 export interface Profile {
   id: string;
@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const saveOnboarding = async (values: Partial<Profile> & { role: CustomerRole }) => {
     if (!user) return 'يجب تسجيل الدخول أولاً.';
-    const role = ['PATIENT', 'STUDENT', 'DENTIST'].includes(values.role) ? values.role : 'PATIENT';
+    const role = ['PATIENT', 'STUDENT'].includes(values.role) ? values.role : 'PATIENT';
     const { data, error } = await supabase
       .from('profiles')
       .update({ ...values, role, full_name: values.full_name || metadataName(user) })
@@ -93,6 +93,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return <AuthContext.Provider value={{ user, profile, loading, signInWithGoogle, signOut: async () => { await supabase.auth.signOut(); }, saveOnboarding }}>{children}</AuthContext.Provider>;
+};
+
+export const isProfileComplete = (profile: Profile | null) => {
+  if (!profile?.phone || !profile.province_id) return false;
+  if (profile.role === 'STUDENT') return Boolean(profile.university_id && profile.stage);
+  return profile.role === 'PATIENT';
 };
 
 export const useAuth = () => {

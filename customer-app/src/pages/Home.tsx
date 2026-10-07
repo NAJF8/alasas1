@@ -1,12 +1,18 @@
+import { UserPlus, Stethoscope } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Header } from '../components/layout/Header';
 import { Hero } from '../components/home/Hero';
+import { isProfileComplete, useAuth } from '../context/AuthContext';
 
 export const Home = () => {
+  const { user, profile, loading } = useAuth();
+  const accountName = profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'مستخدم';
+  const accountAction = !user ? <><Link className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-primary-600 hover:bg-primary-700 md:py-4 md:text-lg transition-all" to="/login"><UserPlus className="ml-2 w-5 h-5" />أنا مريض</Link><Link className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-lg text-primary-700 bg-primary-100 hover:bg-primary-200 md:py-4 md:text-lg transition-all" to="/login"><Stethoscope className="ml-2 w-5 h-5" />أنا طالب طب أسنان</Link><Link className="text-primary-700 underline" to="/login">تسجيل الدخول</Link></> : loading ? <span>جاري التحقق من الحساب...</span> : <><span>أهلاً، {accountName}</span><Link className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-primary-600 hover:bg-primary-700 md:py-4 md:text-lg transition-all" to={isProfileComplete(profile) ? '/dashboard' : '/onboarding'}>{isProfileComplete(profile) ? 'الذهاب إلى حسابي' : 'أكمل حسابك'}</Link></>;
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header />
       <main className="flex-grow">
-        <Hero />
+        <Hero accountAction={accountAction} />
         
         {/* Features Section Outline */}
         <section className="py-20 bg-white">
