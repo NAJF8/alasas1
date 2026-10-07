@@ -1,57 +1,21 @@
+import { ArrowLeft, CalendarDays, ChevronLeft, CircleHelp, GraduationCap, HeartHandshake, LockKeyhole, MapPin, ShieldCheck, Sparkles, University, UserRound, UsersRound } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Header } from '../components/layout/Header';
 import { Hero } from '../components/home/Hero';
+import { isProfileComplete, useAuth } from '../context/AuthContext';
+
+const steps = [
+  { number: '01', icon: UsersRound, title: 'أنشئ حسابك', body: 'اختر حساب مريض أو طالب طب أسنان وأكمل بياناتك الأساسية.' },
+  { number: '02', icon: HeartHandshake, title: 'أرسل طلبك', body: 'ارفع الحالة أو حدّد المواصفات السريرية التي تبحث عنها.' },
+  { number: '03', icon: Sparkles, title: 'مطابقة مناسبة', body: 'تساعد الإدارة في ترشيح أفضل تطابق حسب الجامعة والموقع والتوفر.' },
+  { number: '04', icon: CalendarDays, title: 'موعد منسّق', body: 'تواصل آمن عبر المنصة وتنسيق الموعد دون كشف بياناتك الشخصية.' },
+];
+const universities = ['جامعة الكوفة', 'جامعة بغداد', 'جامعة بابل', 'جامعة كربلاء'];
+const currentYear = new Date().getFullYear();
 
 export const Home = () => {
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header />
-      <main className="flex-grow">
-        <Hero />
-        
-        {/* Features Section Outline */}
-        <section className="py-20 bg-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center">
-              <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
-                كيف تعمل المنصة؟
-              </h2>
-              <p className="mt-4 max-w-2xl text-xl text-gray-500 mx-auto">
-                نظام ذكي وآمن يضمن الخصوصية وسرعة المطابقة بين الطرفين.
-              </p>
-            </div>
-
-            <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
-              {/* Feature 1 */}
-              <div className="bg-gray-50 rounded-2xl p-8 text-center border border-gray-100">
-                <div className="w-16 h-16 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-bold">1</div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">سجل حالتك</h3>
-                <p className="text-gray-600">المريض يرفع تفاصيل حالته وصور الأسنان بسهولة وبشكل مجاني تماماً.</p>
-              </div>
-
-              {/* Feature 2 */}
-              <div className="bg-gray-50 rounded-2xl p-8 text-center border border-gray-100">
-                <div className="w-16 h-16 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-bold">2</div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">المطابقة الذكية</h3>
-                <p className="text-gray-600">يقوم الذكاء الاصطناعي بمطابقة الحالة مع الطلاب الذين يبحثون عن نفس المشكلة.</p>
-              </div>
-
-              {/* Feature 3 */}
-              <div className="bg-gray-50 rounded-2xl p-8 text-center border border-gray-100">
-                <div className="w-16 h-16 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl font-bold">3</div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">التواصل والتنسيق</h3>
-                <p className="text-gray-600">تقوم إدارة المنصة بالتواصل مع الطرفين وتحديد موعد العلاج بكل سرية.</p>
-              </div>
-            </div>
-          </div>
-        </section>
-      </main>
-      
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-gray-400">
-          <p>© {new Date().getFullYear()} أسنان الأساس. جميع الحقوق محفوظة.</p>
-        </div>
-      </footer>
-    </div>
-  );
+  const { user, profile, loading } = useAuth();
+  const accountName = profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'مستخدم';
+  const accountAction = !user ? <><Link className="primary-button hero-primary" to="/login">أنا مريض <UserRound size={18} /></Link><Link className="secondary-button" to="/login">أنا طالب طب أسنان <GraduationCap size={18} /></Link><Link className="text-link" to="/login">تسجيل الدخول</Link></> : loading ? <span className="hero-note">جاري التحقق من الحساب...</span> : <><span className="hero-note">أهلاً، {accountName}</span><Link className="primary-button hero-primary" to={isProfileComplete(profile) ? '/dashboard' : '/onboarding'}>{isProfileComplete(profile) ? 'الذهاب إلى حسابي' : 'أكمل حسابك'} <ArrowLeft size={18} /></Link></>;
+  return <div className="customer-shell" dir="rtl"><Header /><main><Hero accountAction={accountAction} /><section className="trust-strip"><div><ShieldCheck size={22} /><span><b>خصوصيتك أولاً</b><small>بيانات التواصل للإدارة فقط</small></span></div><div><University size={22} /><span><b>جامعات قريبة</b><small>اختيار يصل إلى 4 جامعات</small></span></div><div><Sparkles size={22} /><span><b>مطابقة أذكى</b><small>عوامل سريرية ومكانية واضحة</small></span></div></section><section className="section how-section" id="how-it-works"><div className="section-heading"><span>بخطوات واضحة</span><h2>كيف تعمل المنصة؟</h2><p>من تسجيل الحساب إلى الموعد، كل مرحلة مصممة لتكون بسيطة وآمنة.</p></div><div className="steps-grid">{steps.map(({ number, icon: Icon, title, body }) => <article className="step-card" key={number}><div className="step-icon"><Icon size={23} /></div><span className="step-number">{number}</span><h3>{title}</h3><p>{body}</p></article>)}</div></section><section className="section audience-section" id="patients"><div className="section-heading"><span>اختر طريقك</span><h2>منصة واحدة، احتياجان واضحان</h2><p>لا توجد حسابات وسيطة للعميل. اختر الدور الذي يناسبك وابدأ.</p></div><div className="audience-grid"><article className="audience-card audience-patient"><div className="audience-mark">م</div><div><h3>أنا مريض</h3><p>أرغب في عرض حالة أسنان والعثور على طالب مناسب في جامعة قريبة.</p><Link to="/login">ابدأ كمريض <ArrowLeft size={17} /></Link></div></article><article className="audience-card audience-student"><div className="audience-mark">ط</div><div><h3>أنا طالب طب أسنان</h3><p>أبحث عن حالات سريرية مناسبة لمتطلبات التدريب في جامعتي.</p><Link to="/login">ابدأ كطالب <ArrowLeft size={17} /></Link></div></article></div></section><section className="section privacy-section" id="privacy"><div className="privacy-panel"><div className="privacy-icon"><LockKeyhole size={26} /></div><div><span>أمان وخصوصية</span><h2>بياناتك لا تُعرض للطرف الآخر</h2><p>نخفي الاسم ورقم الهاتف وواتساب والبريد عن العملاء. الإدارة وحدها تنسّق التواصل عند وجود تطابق مناسب.</p></div><Link className="outline-button" to="/faq">اعرف المزيد <ChevronLeft size={17} /></Link></div></section><section className="section universities-section" id="universities"><div className="section-heading section-heading-row"><div><span>شركاؤنا القريبون</span><h2>جامعات طب الأسنان</h2><p>اختر الجامعات الأنسب لك أثناء إنشاء ملفك أو حالتك.</p></div><Link className="text-link" to="/login">عرض الجامعات <ArrowLeft size={17} /></Link></div><div className="university-row">{universities.map((name, index) => <div className="university-tile" key={name}><div className={`university-photo university-photo-${index + 1}`}><University size={28} /></div><b>{name}</b><small>كلية طب الأسنان</small><MapPin size={14} /> النجف / العراق</div>)}</div></section><section className="section faq-section" id="faq"><div className="section-heading"><span>أسئلة شائعة</span><h2>قبل أن تبدأ</h2></div><div className="faq-grid"><details open><summary><CircleHelp size={18} /> هل يمكنني اختيار أكثر من جامعة؟ <ChevronLeft size={18} /></summary><p>نعم، يمكنك اختيار جامعة واحدة إلى أربع جامعات مناسبة لك، ويمكن تعديلها عند إضافة الحالة.</p></details><details><summary><CircleHelp size={18} /> هل تظهر بياناتي للطلاب؟ <ChevronLeft size={18} /></summary><p>لا. تظهر حالة مجهّلة فقط، وتبقى بيانات التواصل لدى إدارة المنصة.</p></details><details><summary><CircleHelp size={18} /> هل التسجيل مجاني؟ <ChevronLeft size={17} /></summary><p>إنشاء الحساب وإرسال الحالة متاحان من خلال المنصة، وأي تنسيق يتم عبر الإدارة.</p></details></div></section></main><footer className="customer-footer"><div><div className="brand-lockup"><div className="brand-tooth">✦</div><span>أسنان الأساس<small>منصة تربط المرضى بطلاب طب الأسنان</small></span></div><p>رعاية أسنان أفضل بالتعاون مع جامعات العراق.</p></div><div className="footer-links"><Link to="/how-it-works">كيف تعمل المنصة</Link><Link to="/patients">للمرضى</Link><Link to="/students">للطلاب</Link><Link to="/faq">الأسئلة الشائعة</Link></div><small>© {currentYear} أسنان الأساس. جميع الحقوق محفوظة.</small></footer></div>;
 };

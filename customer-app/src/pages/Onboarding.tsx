@@ -1,52 +1,69 @@
-import { Loader2, Save } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
-import { useAuth, type CustomerRole } from '../context/AuthContext';
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Loader2, MapPin, Save, University, UserRound } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Navigate, useNavigate } from 'react-router-dom';
+import { clearAuthIntent, isProfileComplete, readAuthIntent, useAuth, type CustomerRole } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 
-type Option = { id: string; name_ar: string };
+type Option = { id: string; name_ar: string; province_id?: string };
+type Values = { full_name: string; phone: string; whatsapp: string; gender: string; birth_date: string; province_id: string; area_id: string; university_id: string; stage: string };
+const MAX_UNIVERSITIES = 4;
+const stages = [{ value: 'THIRD', label: 'الثالثة' }, { value: 'FOURTH', label: 'الرابعة' }, { value: 'FIFTH', label: 'الخامسة' }];
+const initialValues = (name = ''): Values => ({ full_name: name, phone: '', whatsapp: '', gender: '', birth_date: '', province_id: '', area_id: '', university_id: '', stage: '' });
 
 export const Onboarding = () => {
-  const { user, profile, loading, saveOnboarding } = useAuth();
-  const [role, setRole] = useState<CustomerRole>('PATIENT');
-  const [values, setValues] = useState({ full_name: user?.user_metadata?.full_name || user?.user_metadata?.name || '', phone: '', whatsapp: '', gender: '', birth_date: '', province_id: '', area_id: '', university_id: '', stage: '', workplace: '' });
-  const [provinces, setProvinces] = useState<Option[]>([]);
-  const [areas, setAreas] = useState<Option[]>([]);
-  const [universities, setUniversities] = useState<Option[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { user, profile, loading, saveOnboarding, refreshProfile } = useAuth();
+  const navigate = useNavigate();
+  const pendingRole = readAuthIntent()?.role as CustomerRole | undefined;
+  const role: CustomerRole | null = pendingRole || (profile?.role === 'STUDENT' ? 'STUDENT' : profile?.role === 'PATIENT' ? 'PATIENT' : null);
+  const [step, setStep] = useState(0);
+  const [values, setValues] = useState<Values>(() => initialValues(user?.user_metadata?.full_name || user?.user_metadata?.name || ''));
+  const [provinces, setProvinces] = useState<Option[]>([]); const [areas, setAreas] = useState<Option[]>([]); const [universities, setUniversities] = useState<Option[]>([]); const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [loadingData, setLoadingData] = useState(true); const [saving, setSaving] = useState(false); const [error, setError] = useState<string | null>(null);
+  const isStudent = role === 'STUDENT';
+  const steps = isStudent ? ['معلومات الحساب', 'المعلومات الأكاديمية', 'الجامعات المفضلة', 'المراجعة'] : ['معلومات الحساب', 'الجامعات المناسبة', 'المراجعة'];
 
-  useEffect(() => {
-    if (profile) {
-      setRole(profile.role === 'STUDENT' || profile.role === 'DENTIST' ? profile.role : 'PATIENT');
-      setValues((current) => ({ ...current, full_name: profile.full_name || user?.user_metadata?.full_name || '', phone: profile.phone || '', whatsapp: profile.whatsapp || '', gender: profile.gender || '', birth_date: profile.birth_date || '', province_id: profile.province_id || '', area_id: profile.area_id || '', university_id: profile.university_id || '', stage: profile.stage || '', workplace: profile.workplace || '' }));
-    }
-  }, [profile, user]);
+  useEffect(() => { if (!profile) return; setValues((current) => ({ ...current, full_name: profile.full_name || current.full_name, phone: profile.phone || '', whatsapp: profile.whatsapp || '', gender: profile.gender || '', birth_date: profile.birth_date || '', province_id: profile.province_id || '', area_id: profile.area_id || '', university_id: profile.university_id || '', stage: profile.stage || '' })); }, [profile]);
+  useEffect(() => { void Promise.all([supabase.from('provinces').select('id, name_ar').eq('is_active', true).order('name_ar'), supabase.from('universities').select('id, name_ar, province_id').eq('is_active', true).eq('has_dental_college', true).order('name_ar')]).then(([provinceResult, universityResult]) => { setProvinces((provinceResult.data || []) as Option[]); setUniversities((universityResult.data || []) as Option[]); setLoadingData(false); }); }, []);
+  useEffect(() => { if (!values.province_id) { setAreas([]); return; } void supabase.from('areas').select('id, name_ar').eq('province_id', values.province_id).eq('is_active', true).order('name_ar').then(({ data }) => setAreas((data || []) as Option[])); }, [values.province_id]);
+  useEffect(() => { if (!user || !role) return; const table = role === 'PATIENT' ? 'patient_preferred_universities' : 'student_preferred_universities'; const column = role === 'PATIENT' ? 'patient_id' : 'student_id'; void supabase.from(table).select('university_id').eq(column, user.id).then(({ data }) => setSelectedIds((data || []).map((row) => row.university_id as string))); }, [role, user]);
 
-  useEffect(() => { void supabase.from('provinces').select('id, name_ar').eq('is_active', true).order('name_ar').then(({ data }) => setProvinces((data || []) as Option[])); }, []);
-  useEffect(() => { if (!values.province_id) return setAreas([]); void supabase.from('areas').select('id, name_ar').eq('province_id', values.province_id).eq('is_active', true).order('name_ar').then(({ data }) => setAreas((data || []) as Option[])); }, [values.province_id]);
-  useEffect(() => { if (role !== 'STUDENT') return setUniversities([]); void supabase.from('universities').select('id, name_ar').eq('is_active', true).eq('has_dental_college', true).order('name_ar').then(({ data }) => setUniversities((data || []) as Option[])); }, [role]);
+  const selectedUniversities = useMemo(() => universities.filter((item) => selectedIds.includes(item.id)), [selectedIds, universities]);
+  const set = (key: keyof Values, value: string) => setValues((current) => ({ ...current, [key]: value }));
+  const toggleUniversity = (id: string) => setSelectedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : current.length < MAX_UNIVERSITIES ? [...current, id] : current);
+  const universityName = (id: string) => universities.find((item) => item.id === id)?.name_ar || '—';
+  const provinceName = provinces.find((item) => item.id === values.province_id)?.name_ar || '—';
+  const areaName = areas.find((item) => item.id === values.area_id)?.name_ar || '—';
+  const field = (label: string, key: keyof Values, type = 'text', required = true) => <label className="onboarding-field"><span>{label}</span><input required={required} type={type} value={values[key]} onChange={(event) => set(key, event.target.value)} /></label>;
 
-  if (loading) return <div className="min-h-screen grid place-items-center"><Loader2 className="animate-spin text-primary-600" /></div>;
+  if (loading || loadingData) return <div className="onboarding-loading" dir="rtl"><Loader2 className="animate-spin" size={26} /> جاري تجهيز حسابك...</div>;
   if (!user) return <Navigate to="/login" replace />;
-  if (profile?.phone && profile?.province_id) return <Navigate to="/" replace />;
+  if (!role) return <Navigate to="/register" replace />;
+  if (isProfileComplete(profile)) return <Navigate to="/dashboard" replace />;
 
-  const set = (key: keyof typeof values, value: string) => setValues((current) => ({ ...current, [key]: value }));
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault(); setSaving(true); setError(null);
-    const payload: Record<string, string | null> = { role, full_name: values.full_name, phone: values.phone, whatsapp: values.whatsapp || null, province_id: values.province_id, area_id: values.area_id || null, gender: role === 'PATIENT' ? values.gender || null : null, birth_date: role === 'PATIENT' ? values.birth_date || null : null, university_id: role === 'STUDENT' ? values.university_id || null : null, stage: role === 'STUDENT' ? values.stage || null : null, workplace: role === 'DENTIST' ? values.workplace || null : null };
-    const result = await saveOnboarding({ ...payload, role } as never); if (result) setError(result); setSaving(false);
+  const universityStep = isStudent ? 2 : 1;
+  const validate = () => {
+    if (step === 0 && (!values.full_name.trim() || !values.phone.trim() || !values.province_id || !values.area_id || (!isStudent && (!values.gender || !values.birth_date)))) return 'أكمل معلومات الحساب قبل المتابعة.';
+    if (isStudent && step === 1 && (!values.university_id || !values.stage)) return 'اختر الجامعة الأساسية والمرحلة.';
+    if (step === universityStep && (selectedIds.length < 1 || selectedIds.length > MAX_UNIVERSITIES)) return 'اختر جامعة واحدة على الأقل وبحد أقصى 4 جامعات.';
+    return null;
+  };
+  const next = () => { const message = validate(); if (message) { setError(message); return; } setError(null); setStep((current) => Math.min(current + 1, steps.length - 1)); };
+  const back = () => { setError(null); if (step === 0) { clearAuthIntent(); navigate('/register'); } else setStep((current) => current - 1); };
+  const save = async () => {
+    const message = validate(); if (message) { setError(message); return; }
+    setSaving(true); setError(null);
+    const result = await saveOnboarding({ role, full_name: values.full_name.trim(), phone: values.phone.trim(), whatsapp: values.whatsapp.trim() || null, province_id: values.province_id, area_id: values.area_id, gender: isStudent ? null : values.gender, birth_date: isStudent ? null : values.birth_date, university_id: isStudent ? values.university_id : null, stage: isStudent ? values.stage : null });
+    if (result) { setError(result); setSaving(false); return; }
+    const table = role === 'PATIENT' ? 'patient_preferred_universities' : 'student_preferred_universities'; const column = role === 'PATIENT' ? 'patient_id' : 'student_id';
+    const { error: deleteError } = await supabase.from(table).delete().eq(column, user.id);
+    const { error: preferenceError } = deleteError ? { error: deleteError } : await supabase.from(table).insert(selectedIds.map((university_id) => ({ [column]: user.id, university_id })));
+    if (preferenceError) setError(preferenceError.message); else {
+      const savedProfile = await refreshProfile();
+      if (!savedProfile || !isProfileComplete(savedProfile)) setError('تم الحفظ لكن تعذر قراءة الملف والجامعات المحفوظة. أعد المحاولة.');
+      else { clearAuthIntent(); navigate('/dashboard', { replace: true }); }
+    }
+    setSaving(false);
   };
 
-  const field = (label: string, key: keyof typeof values, type = 'text', required = true) => <label className="block"><span className="mb-2 block text-sm font-bold text-slate-700">{label}</span><input required={required} type={type} value={values[key]} onChange={(event) => set(key, event.target.value)} className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-primary-500" /></label>;
-  return <main className="min-h-screen bg-slate-50 px-4 py-10" dir="rtl"><form onSubmit={submit} className="mx-auto max-w-2xl rounded-3xl bg-white p-6 shadow-xl sm:p-10"><h1 className="text-3xl font-black text-slate-900">أهلاً بك، أكمل معلومات حسابك</h1><p className="mt-2 text-slate-500">تُستخدم هذه المعلومات لتجهيز ملفك فقط، ولا يمكن اختيار صلاحيات الإدارة.</p>
-    <div className="mt-8 grid gap-5 sm:grid-cols-2">{field('الاسم الكامل', 'full_name')}{field('رقم الهاتف', 'phone', 'tel')}{field('واتساب', 'whatsapp', 'tel')}
-      <label className="block"><span className="mb-2 block text-sm font-bold text-slate-700">نوع الحساب</span><select value={role} onChange={(event) => setRole(event.target.value as CustomerRole)} className="w-full rounded-xl border border-slate-200 px-4 py-3"><option value="PATIENT">مريض</option><option value="STUDENT">طالب طب أسنان</option><option value="DENTIST">طبيب أسنان</option></select></label>
-      {role === 'PATIENT' && <>{field('الجنس', 'gender')}{field('تاريخ الميلاد', 'birth_date', 'date')}</>}
-      <label className="block"><span className="mb-2 block text-sm font-bold text-slate-700">المحافظة</span><select required value={values.province_id} onChange={(event) => { set('province_id', event.target.value); set('area_id', ''); }} className="w-full rounded-xl border border-slate-200 px-4 py-3"><option value="">اختر المحافظة</option>{provinces.map((option) => <option key={option.id} value={option.id}>{option.name_ar}</option>)}</select></label>
-      <label className="block"><span className="mb-2 block text-sm font-bold text-slate-700">المنطقة</span><select required value={values.area_id} onChange={(event) => set('area_id', event.target.value)} className="w-full rounded-xl border border-slate-200 px-4 py-3"><option value="">اختر المنطقة</option>{areas.map((option) => <option key={option.id} value={option.id}>{option.name_ar}</option>)}</select></label>
-      {role === 'STUDENT' && <>{field('المرحلة', 'stage')}{<label className="block"><span className="mb-2 block text-sm font-bold text-slate-700">الجامعة</span><select required value={values.university_id} onChange={(event) => set('university_id', event.target.value)} className="w-full rounded-xl border border-slate-200 px-4 py-3"><option value="">اختر الجامعة</option>{universities.map((option) => <option key={option.id} value={option.id}>{option.name_ar}</option>)}</select></label>}</>}
-      {role === 'DENTIST' && field('مكان العمل', 'workplace')}
-    </div>{error && <p className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-700">تعذر حفظ المعلومات: {error}</p>}<button disabled={saving} className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 px-5 py-3.5 font-bold text-white hover:bg-primary-700 disabled:opacity-60">{saving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}حفظ ومتابعة</button>
-  </form></main>;
+  return <main className="onboarding-page" dir="rtl"><div className="onboarding-shell"><header className="onboarding-heading"><div><span className="auth-eyebrow">خطوة جديدة نحو تجربة أفضل</span><h1>أهلاً بك، أكمل حسابك</h1><p>{isStudent ? 'جهّز ملفك الأكاديمي لنجد لك الحالات السريرية المناسبة.' : 'أكمل معلوماتك لنساعدك في الوصول إلى طالب طب الأسنان المناسب.'}</p></div><div className="onboarding-role"><UserRound size={19} /> {isStudent ? 'طالب طب أسنان' : 'مريض'}</div></header><div className="onboarding-progress"><div className="progress-track"><span style={{ width: `${(step / (steps.length - 1)) * 100}%` }} /></div><div className="step-list">{steps.map((label, index) => <div className={`step-item ${index === step ? 'is-current' : ''} ${index < step ? 'is-done' : ''}`} key={label}><span>{index < step ? <Check size={16} /> : index + 1}</span><small>{label}</small></div>)}</div></div><section className="onboarding-card"><div className="onboarding-card-header"><div><span>الخطوة {step + 1} من {steps.length}</span><h2>{steps[step]}</h2></div><strong>{Math.round((step / (steps.length - 1)) * 100)}%</strong></div>{step === 0 && <div className="onboarding-grid">{field('الاسم الكامل', 'full_name')}{field('رقم الهاتف', 'phone', 'tel')}{field('واتساب', 'whatsapp', 'tel', false)}{!isStudent && <>{field('الجنس', 'gender')}{field('تاريخ الميلاد', 'birth_date', 'date')}</>}<label className="onboarding-field"><span>المحافظة</span><select required value={values.province_id} onChange={(event) => { set('province_id', event.target.value); set('area_id', ''); }}><option value="">اختر المحافظة</option>{provinces.map((item) => <option key={item.id} value={item.id}>{item.name_ar}</option>)}</select></label><label className="onboarding-field"><span>المنطقة</span><select required value={values.area_id} onChange={(event) => set('area_id', event.target.value)}><option value="">اختر المنطقة</option>{areas.map((item) => <option key={item.id} value={item.id}>{item.name_ar}</option>)}</select></label></div>}{isStudent && step === 1 && <div className="academic-panel"><p>الجامعة الأساسية هي الجامعة التي تدرس فيها حاليًا.</p><div className="university-card-grid">{universities.map((item) => <button type="button" key={item.id} onClick={() => set('university_id', item.id)} className={`university-select-card ${values.university_id === item.id ? 'is-selected' : ''}`}><span className="university-card-icon"><University size={22} /></span><span><b>{item.name_ar}</b><small>الجامعة الأساسية</small></span>{values.university_id === item.id && <CheckCircle2 size={20} />}</button>)}</div><label className="onboarding-field single-field"><span>المرحلة</span><select required value={values.stage} onChange={(event) => set('stage', event.target.value)}><option value="">اختر المرحلة</option>{stages.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label></div>}{step === universityStep && <div className="university-step"><div className="university-step-copy"><div><span>اختياراتك</span><h3>اختر الجامعات المناسبة لك</h3><p>اختر الجامعات القريبة أو التي يمكنك المراجعة فيها، بحد أقصى 4 جامعات.</p></div><strong>{selectedIds.length} / {MAX_UNIVERSITIES}<small>جامعات مختارة</small></strong></div><div className="university-card-grid">{universities.map((item) => <button type="button" key={item.id} onClick={() => toggleUniversity(item.id)} className={`university-select-card ${selectedIds.includes(item.id) ? 'is-selected' : ''}`}><span className="university-card-icon"><University size={22} /></span><span><b>{item.name_ar}</b><small><MapPin size={13} /> محافظة الجامعة</small></span>{selectedIds.includes(item.id) && <CheckCircle2 size={20} />}</button>)}</div></div>}{step === steps.length - 1 && <div className="review-grid"><div className="review-section"><h3><UserRound size={18} /> معلوماتك</h3><p><b>الاسم</b>{values.full_name || '—'}</p><p><b>الهاتف</b>{values.phone || '—'}</p><p><b>الموقع</b>{provinceName} / {areaName}</p>{!isStudent && <p><b>الجنس وتاريخ الميلاد</b>{values.gender || '—'} — {values.birth_date || '—'}</p>}{isStudent && <><p><b>الجامعة الأساسية</b>{universityName(values.university_id)}</p><p><b>المرحلة</b>{stages.find((item) => item.value === values.stage)?.label || '—'}</p></>}</div><div className="review-section"><h3><University size={18} /> الجامعات المختارة</h3>{selectedUniversities.length ? selectedUniversities.map((item) => <p className="review-university" key={item.id}><Check size={15} />{item.name_ar}</p>) : <p>لم تختر جامعات بعد.</p>}</div></div>}{error && <p className="onboarding-error">{error}</p>}<footer className="onboarding-actions"><button type="button" className="wizard-back" onClick={back}><ArrowRight size={18} /> السابق</button>{step < steps.length - 1 ? <button type="button" className="auth-primary-button" onClick={next}>التالي <ArrowLeft size={18} /></button> : <button type="button" className="auth-primary-button" disabled={saving} onClick={() => void save()}>{saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} إنشاء الحساب</button>}</footer></section></div></main>;
 };
