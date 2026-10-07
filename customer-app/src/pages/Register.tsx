@@ -20,8 +20,8 @@ export const Register = () => {
 
   const continueFlow = async () => {
     if (!selectedRole) { setError('اختر نوع الحساب أولاً.'); return; }
-    localStorage.setItem('customer-app:auth-intent', JSON.stringify({ flow: 'register', role: selectedRole, createdAt: Date.now() }));
     if (user) {
+      localStorage.setItem('customer-app:auth-intent', JSON.stringify({ flow: 'register', role: selectedRole, createdAt: Date.now(), nonce: crypto.randomUUID() }));
       if (profile) {
         clearAuthIntent();
         navigate(profile.role === 'PATIENT' || profile.role === 'STUDENT' ? (isProfileComplete(profile) ? '/dashboard' : '/onboarding') : '/');

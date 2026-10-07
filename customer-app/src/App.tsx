@@ -10,6 +10,11 @@ import { Register } from './pages/Register';
 import { AuthProvider } from './context/AuthContext';
 import { clearAuthIntent, isProfileComplete, readAuthIntent, useAuth, type CustomerRole } from './context/AuthContext';
 
+const AuthNotice = () => {
+  const { authNotice } = useAuth();
+  return authNotice ? <div className="auth-error" style={{ position: 'fixed', top: 20, left: 20, right: 20, zIndex: 50, textAlign: 'center' }}>{authNotice}</div> : null;
+};
+
 const HomeRoute = () => {
   const { user, profile, loading } = useAuth();
   if (!loading && user) {
@@ -59,7 +64,7 @@ const PublicSectionRoute = ({ sectionId }: { sectionId: string }) => {
 
 function App() {
   const Router = import.meta.env.BASE_URL === '/alasas1/' ? HashRouter : BrowserRouter;
-  return <AuthProvider><Router>
+  return <AuthProvider><AuthNotice /><Router>
       <Routes>
         <Route path="/" element={<HomeRoute />} />
         <Route path="/dashboard" element={<DashboardRoute />} />
