@@ -4,6 +4,7 @@ import { Component, lazy, Suspense, type ErrorInfo, type ReactNode } from 'react
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedAdminRoute } from './components/auth/ProtectedRoute';
 import { Login } from './pages/Login';
+import { RegistrationRequestsPage } from './pages/RegistrationRequestsPage';
 const DashboardHome = lazy(() => import('./pages/DashboardHome').then((module) => ({ default: module.DashboardHome })));
 const ManagementPage = lazy(() => import('./pages/ManagementPage').then((module) => ({ default: module.ManagementPage })));
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then((module) => ({ default: module.SettingsPage })));
@@ -29,6 +30,7 @@ function App() {
             <Route path="/" element={<DashboardHome />} />
             <Route path="/branding" element={<SettingsPage mode="branding" />} />
             <Route path="/settings" element={<SettingsPage mode="content" />} />
+            <Route path="/registration-requests" element={<RegistrationRequestsPage />} />
             {['/users', '/patients', '/students', '/cases', '/requests', '/matches', '/appointments', '/universities', '/provinces', '/notifications', '/reports', '/admins'].map((path) => <Route key={path} path={path} element={<ManagementPage path={path} />} />)}
           </Route>
         </Routes>

@@ -1,0 +1,27 @@
+import { AlertCircle, CheckCircle2, GraduationCap, Loader2, ShieldCheck, UserRound } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { normalizeIraqiPhone } from '../lib/phoneAuth';
+
+type Role = 'PATIENT' | 'STUDENT';
+
+export const RegistrationRequest = () => {
+  const [params] = useSearchParams();
+  const [role, setRole] = useState<Role>(params.get('role') === 'STUDENT' ? 'STUDENT' : 'PATIENT');
+  const [values, setValues] = useState({ fullName: '', phone: '', pin: '', confirmPin: '', gender: '', province: '', university: '' });
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const normalizedPhone = useMemo(() => normalizeIraqiPhone(values.phone), [values.phone]);
+  const set = (key: keyof typeof values, value: string) => setValues((current) => ({ ...current, [key]: value }));
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    setError(null); setNotice(null);
+    if (!values.fullName.trim() || !normalizedPhone || !values.gender || !values.province) { setError('أكمل الاسم والهاتف والجنس والمحافظة.'); return; }
+    if (!/^\d{6}$/.test(values.pin) || values.pin !== values.confirmPin) { setError('يجب أن يكون PIN من 6 أرقام ومتطابقاً مع التأكيد.'); return; }
+    if (role === 'STUDENT' && !values.university) { setError('اختر الجامعة المطلوبة للطالب.'); return; }
+    setBusy(true);
+    window.setTimeout(() => { setBusy(false); setNotice('واجهة الطلب جاهزة، لكن الحفظ غير مفعّل حتى اعتماد Backend آمن للتجزئة والمصادقة. لم يتم إرسال PIN أو البيانات إلى أي خدمة.'); }, 250);
+  };
+  return <main className="auth-page register-page" dir="rtl"><section className="register-shell"><div className="register-intro"><span className="auth-eyebrow">أسنان الأساس</span><h1>طلب تسجيل حساب</h1><p>قدّم طلبك بسهولة. بعد اعتماد الإدارة والتحقق الموثوق فقط يصبح الحساب فعالاً.</p></div><div className="register-cards">{([{ role: 'PATIENT' as const, title: 'مريض', icon: UserRound }, { role: 'STUDENT' as const, title: 'طالب طب أسنان', icon: GraduationCap }]).map(({ role: itemRole, title, icon: Icon }) => <button type="button" key={itemRole} onClick={() => setRole(itemRole)} className={`register-card ${itemRole === 'PATIENT' ? 'register-card-blue' : 'register-card-teal'} ${role === itemRole ? 'is-selected' : ''}`}><span className="register-icon"><Icon size={26} /></span><span className="register-card-copy"><strong>{title}</strong><small>{itemRole === 'PATIENT' ? 'عرض حالة أسنان' : 'طلب حالات تدريبية'}</small></span><span className="register-radio">{role === itemRole ? '✓' : ''}</span></button>)}</div><form onSubmit={submit}><label className="auth-field"><span>الاسم الكامل</span><input required value={values.fullName} onChange={(event) => set('fullName', event.target.value)} /></label><label className="auth-field"><span>رقم الهاتف العراقي</span><input required inputMode="tel" placeholder="07XXXXXXXXX" value={values.phone} onChange={(event) => set('phone', event.target.value)} /><small>{normalizedPhone ? `الصيغة المعتمدة: ${normalizedPhone}` : 'سيتم التطبيع إلى +9647XXXXXXXXX'}</small></label><div className="onboarding-grid"><label className="onboarding-field"><span>PIN من 6 أرقام</span><input required inputMode="numeric" maxLength={6} type="password" value={values.pin} onChange={(event) => set('pin', event.target.value.replace(/\D/g, ''))} /></label><label className="onboarding-field"><span>تأكيد PIN</span><input required inputMode="numeric" maxLength={6} type="password" value={values.confirmPin} onChange={(event) => set('confirmPin', event.target.value.replace(/\D/g, ''))} /></label></div><div className="onboarding-grid"><label className="onboarding-field"><span>الجنس</span><select required value={values.gender} onChange={(event) => set('gender', event.target.value)}><option value="">اختر الجنس</option><option value="MALE">ذكر</option><option value="FEMALE">أنثى</option></select></label><label className="onboarding-field"><span>المحافظة</span><input required value={values.province} onChange={(event) => set('province', event.target.value)} placeholder="تُحمّل من Supabase بعد ربط Backend" /></label></div>{role === 'STUDENT' && <label className="auth-field"><span>الجامعة</span><input required value={values.university} onChange={(event) => set('university', event.target.value)} placeholder="تُحمّل من Supabase بعد ربط Backend" /></label>}<div className="auth-error" style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}><ShieldCheck size={18} /><span>لن يُخزّن PIN كنص صريح. هذه النسخة المحلية لا تنشئ جلسة ولا تمنح صلاحيات طبية.</span></div>{error && <p className="auth-error" role="alert"><AlertCircle size={18} /> {error}</p>}{notice && <p className="auth-error" role="status"><CheckCircle2 size={18} /> {notice}</p>}<button type="submit" disabled={busy} className="auth-primary-button">{busy ? <Loader2 className="animate-spin" size={19} /> : <ShieldCheck size={19} />} فحص طلب التسجيل</button></form><p className="auth-switch"><Link to="/login">تسجيل الدخول للحسابات الحالية</Link></p></section></main>;
+};

@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
+import { RegistrationRequest } from './pages/RegistrationRequest';
 import { AuthProvider } from './context/AuthContext';
 import { BrandingProvider } from './context/BrandingContext';
 import { clearAuthIntent, isProfileComplete, readAuthIntent, useAuth, type CustomerRole } from './context/AuthContext';
@@ -89,6 +90,7 @@ function App() {
         <Route path="/students" element={<Navigate to="/student/search" replace />} />
         <Route path="/faq" element={<PublicSectionRoute sectionId="faq" />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/register-request" element={<RegistrationRequest />} />
         <Route path="/register/patient" element={<Navigate to="/login" replace />} />
         <Route path="/register/student" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
