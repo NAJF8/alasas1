@@ -14,6 +14,11 @@ const normalizePhone = (value: string) => {
 }
 
 const bytesToBase64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes))
+const hmacRateKey = async (value: string, secret: string) => {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const digest = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(value))
+  return `registration:${bytesToBase64(new Uint8Array(digest))}`
+}
 const hashPin = async (pin: string) => {
   const salt = crypto.getRandomValues(new Uint8Array(16))
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits'])
@@ -35,22 +40,31 @@ Deno.serve(async (request) => {
     const provinceId = body.province_id ? String(body.province_id) : null
     const universityId = body.university_id ? String(body.university_id) : null
     const stage = body.stage ? String(body.stage).trim() : null
-    if (fullName.length < 2 || fullName.length > 160 || !/^\+9647[0-9]{9}$/.test(phone) || !role || !gender || !/^\d{6}$/.test(pin) || pin !== pinConfirmation || (role === 'STUDENT' && (!universityId || !stage))) {
+    if (fullName.length < 2 || fullName.length > 160 || !/^\+9647[0-9]{9}$/.test(phone) || !role || !gender || !provinceId || !/^\d{6}$/.test(pin) || pin !== pinConfirmation || (role === 'STUDENT' && (!universityId || !stage))) {
       return json({ error: 'بيانات التسجيل غير مكتملة أو غير صحيحة.' }, 400)
     }
     const url = Deno.env.get('SUPABASE_URL')!
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const adminClient = createClient(url, serviceKey)
+    const { data: province } = await adminClient.from('provinces').select('id').eq('id', provinceId).eq('is_active', true).maybeSingle()
+    if (!province) return json({ error: 'المحافظة غير متاحة للتسجيل حالياً.' }, 400)
+    if (role === 'STUDENT') {
+      const { data: university } = await adminClient.from('universities').select('id,province_id').eq('id', universityId).eq('is_active', true).maybeSingle()
+      if (!university || (university.province_id && university.province_id !== provinceId)) return json({ error: 'الجامعة غير متاحة مع المحافظة المختارة.' }, 400)
+    }
+    const rateSecret = Deno.env.get('RATE_LIMIT_SECRET')
+    if (!rateSecret || rateSecret.length < 32) return json({ error: 'خدمة التسجيل غير مهيأة بأمان.' }, 503)
+    const phoneRateKey = await hmacRateKey(`phone:${phone}`, rateSecret)
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
-    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${phone}|${ip}|${Deno.env.get('RATE_LIMIT_SECRET') || 'missing'}`))
-    const rateKey = `registration:${bytesToBase64(new Uint8Array(digest))}`
-    const { data: allowed, error: limitError } = await adminClient.rpc('consume_registration_rate_limit', { p_rate_key: rateKey, p_limit: 5, p_window_seconds: 3600 })
-    if (limitError || allowed !== true) return json({ error: 'تم تجاوز عدد المحاولات. حاول لاحقاً.' }, 429)
+    const ipRateKey = await hmacRateKey(`ip:${ip}`, rateSecret)
+    const phoneLimit = await adminClient.rpc('consume_registration_rate_limit', { p_rate_key: phoneRateKey, p_limit: 5, p_window_seconds: 3600 })
+    const ipLimit = await adminClient.rpc('consume_registration_rate_limit', { p_rate_key: ipRateKey, p_limit: 20, p_window_seconds: 3600 })
+    if (phoneLimit.error || ipLimit.error || phoneLimit.data !== true || ipLimit.data !== true) return json({ error: 'تم تجاوز عدد المحاولات. حاول لاحقاً.' }, 429)
     const pinHash = await hashPin(pin)
-    const { data: row, error } = await adminClient.from('registration_requests').insert({ full_name: fullName, phone_e164: phone, role, gender, province_id: provinceId, university_id: universityId, stage, pin_hash: pinHash }).select('id,status,created_at').single()
-    if (error) return json({ error: error.code === '23505' ? 'يوجد طلب فعال لهذا الرقم.' : 'تعذر حفظ طلب التسجيل.' }, 400)
-    await adminClient.from('registration_audit_logs').insert({ registration_request_id: row.id, action: 'SUBMITTED', metadata: { role } })
-    return json({ request_id: row.id, status: row.status, created_at: row.created_at, message: 'تم إرسال طلب تسجيلك، يرجى انتظار موافقة الإدارة.' }, 201)
+    const { data: row, error } = await adminClient.rpc('create_registration_request', { p_full_name: fullName, p_phone_e164: phone, p_role: role, p_gender: gender, p_province_id: provinceId, p_university_id: universityId, p_stage: stage, p_pin_hash: pinHash })
+    if (error || !row?.[0]) return json({ error: error?.code === '23505' ? 'يوجد طلب فعال لهذا الرقم.' : 'تعذر حفظ طلب التسجيل.' }, 400)
+    const saved = row[0]
+    return json({ request_id: saved.id, status: saved.status, created_at: saved.created_at, message: 'تم إرسال طلب تسجيلك، يرجى انتظار موافقة الإدارة.' }, 201)
   } catch (error) {
     console.error('registration-request', error)
     return json({ error: 'تعذر إكمال طلب التسجيل.' }, 500)

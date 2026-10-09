@@ -10,7 +10,7 @@ create table if not exists public.registration_requests (
   phone_e164 text not null check (phone_e164 ~ '^\+9647[0-9]{9}$'),
   role text not null check (role in ('PATIENT', 'STUDENT')),
   gender text not null check (gender in ('MALE', 'FEMALE')),
-  province_id uuid references public.provinces(id),
+  province_id uuid not null references public.provinces(id),
   university_id uuid references public.universities(id),
   stage text,
   pin_hash text not null,
@@ -102,3 +102,74 @@ grant execute on function public.consume_registration_rate_limit(text, integer, 
 
 comment on table public.registration_requests is 'Server-created registration requests. PIN hashes are never exposed to clients or admins.';
 comment on table public.registration_activation_invites is 'Single-use activation records; approval alone does not prove phone ownership.';
+
+-- The Edge Functions call these transaction wrappers with the service role.
+-- Keeping the request/decision and audit row in one transaction prevents a
+-- success response when the audit write failed.
+create or replace function public.create_registration_request(
+  p_full_name text,
+  p_phone_e164 text,
+  p_role text,
+  p_gender text,
+  p_province_id uuid,
+  p_university_id uuid,
+  p_stage text,
+  p_pin_hash text
+) returns table(id uuid, status text, created_at timestamptz)
+language plpgsql
+security invoker
+set search_path = pg_catalog, public
+as $$
+begin
+  insert into public.registration_requests(full_name, phone_e164, role, gender, province_id, university_id, stage, pin_hash)
+  values (p_full_name, p_phone_e164, p_role, p_gender, p_province_id, p_university_id, p_stage, p_pin_hash)
+  returning registration_requests.id, registration_requests.status, registration_requests.created_at
+  into id, status, created_at;
+
+  insert into public.registration_audit_logs(registration_request_id, action, metadata)
+  values (id, 'SUBMITTED', jsonb_build_object('role', p_role));
+  return next;
+end;
+$$;
+
+create or replace function public.review_registration_request(
+  p_request_id uuid,
+  p_next_status text,
+  p_actor_id uuid,
+  p_rejection_reason text default null
+) returns table(id uuid, status text, reviewed_at timestamptz, full_name text, phone_e164 text)
+language plpgsql
+security invoker
+set search_path = pg_catalog, public
+as $$
+declare
+  review_time timestamptz := clock_timestamp();
+begin
+  if p_next_status not in ('VERIFIED', 'REJECTED') then
+    raise exception 'invalid registration decision';
+  end if;
+
+  update public.registration_requests r
+    set status = p_next_status,
+        rejection_reason = case when p_next_status = 'REJECTED' then p_rejection_reason else null end,
+        reviewed_by = p_actor_id,
+        reviewed_at = review_time,
+        updated_at = review_time
+  where r.id = p_request_id and r.status = 'PENDING'
+  returning r.id, r.status, r.reviewed_at, r.full_name, r.phone_e164
+  into id, status, reviewed_at, full_name, phone_e164;
+
+  if id is null then
+    raise exception 'registration request is missing or already reviewed';
+  end if;
+
+  insert into public.registration_audit_logs(registration_request_id, actor_id, action, reason)
+  values (id, p_actor_id, case when p_next_status = 'VERIFIED' then 'APPROVED' else 'REJECTED' end, p_rejection_reason);
+  return next;
+end;
+$$;
+
+revoke all on function public.create_registration_request(text, text, text, text, uuid, uuid, text, text) from public, anon, authenticated;
+revoke all on function public.review_registration_request(uuid, text, uuid, text) from public, anon, authenticated;
+grant execute on function public.create_registration_request(text, text, text, text, uuid, uuid, text, text) to service_role;
+grant execute on function public.review_registration_request(uuid, text, uuid, text) to service_role;

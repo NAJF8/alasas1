@@ -31,12 +31,10 @@ Deno.serve(async (request) => {
     }
     if (!body.request_id || !['approve', 'reject'].includes(body.action || '')) return json({ error: 'عملية غير صحيحة.' }, 400)
     const nextStatus = body.action === 'approve' ? 'VERIFIED' : 'REJECTED'
-    const { data: current } = await adminClient.from('registration_requests').select('id,status,full_name,phone_e164').eq('id', body.request_id).single()
-    if (!current || current.status !== 'PENDING') return json({ error: 'الطلب غير موجود أو تمت معالجته سابقاً.' }, 409)
-    const { data: updated, error } = await adminClient.from('registration_requests').update({ status: nextStatus, rejection_reason: nextStatus === 'REJECTED' ? (body.reason || null) : null, reviewed_by: userData.user.id, reviewed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', body.request_id).eq('status', 'PENDING').select('id,status,reviewed_at').single()
-    if (error || !updated) return json({ error: 'فشل حفظ القرار.' }, 500)
-    await adminClient.from('registration_audit_logs').insert({ registration_request_id: current.id, actor_id: userData.user.id, action: body.action === 'approve' ? 'APPROVED' : 'REJECTED', reason: body.reason || null })
-    return json({ request_id: updated.id, status: updated.status, reviewed_at: updated.reviewed_at, activation: 'PENDING_VERIFICATION', whatsapp_url: nextStatus === 'VERIFIED' ? whatsapp(current.phone_e164, current.full_name) : null })
+    const { data: updated, error } = await adminClient.rpc('review_registration_request', { p_request_id: body.request_id, p_next_status: nextStatus, p_actor_id: userData.user.id, p_rejection_reason: body.reason || null })
+    if (error || !updated?.[0]) return json({ error: error?.code === 'P0001' ? 'الطلب غير موجود أو تمت معالجته سابقاً.' : 'فشل حفظ القرار.' }, error?.code === 'P0001' ? 409 : 500)
+    const saved = updated[0]
+    return json({ request_id: saved.id, status: saved.status, reviewed_at: saved.reviewed_at, activation: 'PENDING_VERIFICATION', whatsapp_url: nextStatus === 'VERIFIED' ? whatsapp(saved.phone_e164, saved.full_name) : null })
   } catch (error) {
     console.error('registration-admin', error)
     return json({ error: 'تعذر إكمال العملية.' }, 500)
