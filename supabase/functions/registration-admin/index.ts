@@ -22,7 +22,7 @@ Deno.serve(async (request) => {
     const { data: userData, error: userError } = await userClient.auth.getUser()
     if (userError || !userData.user) return json({ error: 'تعذر التحقق من الجلسة.' }, 401)
     const { data: actor } = await adminClient.from('profiles').select('role,status').eq('id', userData.user.id).single()
-    if (!actor || !['ADMIN', 'SUPER_ADMIN', 'STAFF'].includes(actor.role) || actor.status !== 'VERIFIED') return json({ error: 'لا تملك صلاحية إدارة طلبات التسجيل.' }, 403)
+    if (!actor || !['ADMIN', 'SUPER_ADMIN'].includes(actor.role) || actor.status !== 'VERIFIED') return json({ error: 'لا تملك صلاحية إدارة طلبات التسجيل.' }, 403)
     const body = await request.json() as { action?: string; request_id?: string; reason?: string }
     if (body.action === 'list') {
       const { data, error } = await adminClient.from('registration_requests').select('id,full_name,phone_e164,role,gender,province_id,university_id,stage,status,rejection_reason,reviewed_at,created_at').order('created_at', { ascending: false }).limit(100)
