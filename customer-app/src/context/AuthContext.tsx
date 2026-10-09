@@ -133,11 +133,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         } else {
           clearAuthIntent();
         }
-      } else if (intent && (!freshCandidate || customerProfile)) {
-        clearAuthIntent();
-        setAuthNotice('تم تسجيل الدخول بحساب موجود مسبقًا. لم يتم تغيير دوره.');
       } else if (customerProfile) {
+        const roleMismatch = Boolean(intent?.role && intent.role !== customerProfile.role);
         clearAuthIntent();
+        if (roleMismatch) setAuthNotice(`هذا الحساب مسجل كـ${customerProfile.role === 'PATIENT' ? 'مريض' : 'طالب طب أسنان'}؛ تم الحفاظ على دوره الحالي.`);
+      } else if (intent && !freshCandidate) {
+        clearAuthIntent();
+        setAuthNotice('تعذر ربط نية التسجيل بهذا الحساب. اختر نوع الحساب المطابق أو سجّل الخروج أولاً.');
       }
     }
     setProfile(nextProfile);

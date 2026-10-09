@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { isFreshRegistrationCandidate, isValidRegistrationIntent, type RegistrationIntent } from '../src/context/authRegistrationSecurity';
+import { isFreshRegistrationCandidate, isValidRegistrationIntent, type RegistrationIntent } from '../src/context/authRegistrationSecurity.ts';
 
 const now = Date.parse('2026-10-07T18:00:00.000Z');
 const freshIntent = (role: 'PATIENT' | 'STUDENT' = 'STUDENT'): RegistrationIntent => ({
