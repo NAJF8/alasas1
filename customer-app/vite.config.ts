@@ -4,5 +4,6 @@ import { defineConfig } from 'vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: process.env.NODE_ENV === 'production' ? '/alasas1/' : '/',
+  // The customer app is published at the custom-domain root.
+  base: '/',
 })

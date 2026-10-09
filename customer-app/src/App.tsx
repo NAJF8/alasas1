@@ -1,4 +1,4 @@
-import { BrowserRouter, HashRouter, Navigate, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom';
 import { lazy, Suspense, useEffect } from 'react';
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
@@ -74,8 +74,7 @@ const PublicSectionRoute = ({ sectionId }: { sectionId: string }) => {
 };
 
 function App() {
-  const Router = import.meta.env.BASE_URL === '/alasas1/' ? HashRouter : BrowserRouter;
-  return <BrandingProvider><AuthProvider><AuthNotice /><Router><Suspense fallback={<div className="min-h-screen grid place-items-center" dir="rtl">جارٍ تحميل الصفحة...</div>}>
+  return <BrandingProvider><AuthProvider><AuthNotice /><BrowserRouter><Suspense fallback={<div className="min-h-screen grid place-items-center" dir="rtl">جارٍ تحميل الصفحة...</div>}>
       <Routes>
         <Route path="/" element={<HomeRoute />} />
         <Route path="/dashboard" element={<DashboardRoute />} />
@@ -95,7 +94,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/onboarding" element={<Onboarding />} />
       </Routes>
-    </Suspense></Router></AuthProvider></BrandingProvider>;
+    </Suspense></BrowserRouter></AuthProvider></BrandingProvider>;
 }
 
 export default App;

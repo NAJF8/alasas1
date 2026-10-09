@@ -56,6 +56,7 @@ jobs:
           mkdir -p dist-deploy/admin
           cp -R customer-app/dist/. dist-deploy/
           cp -R admin-app/dist/. dist-deploy/admin/
+          printf 'alasas.tech\n' > dist-deploy/CNAME
           touch dist-deploy/.nojekyll
 
       - name: Configure Pages

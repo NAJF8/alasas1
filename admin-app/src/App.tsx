@@ -1,5 +1,5 @@
 
-import { BrowserRouter, HashRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import { Component, lazy, Suspense, type ErrorInfo, type ReactNode } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedAdminRoute } from './components/auth/ProtectedRoute';
@@ -19,10 +19,9 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, { error: Error
 }
 
 function App() {
-  const Router = import.meta.env.BASE_URL === '/alasas1/admin/' || window.location.pathname.startsWith('/admin') ? HashRouter : BrowserRouter;
   return (
     <AppErrorBoundary><AuthProvider>
-      <Router><Suspense fallback={<div className="min-h-screen grid place-items-center" dir="rtl">جارٍ تحميل الصفحة...</div>}>
+      <HashRouter><Suspense fallback={<div className="min-h-screen grid place-items-center" dir="rtl">جارٍ تحميل الصفحة...</div>}>
         <Routes>
           <Route path="/login" element={<Login />} />
           
@@ -33,7 +32,7 @@ function App() {
             {['/users', '/patients', '/students', '/cases', '/requests', '/matches', '/appointments', '/universities', '/notifications', '/reports', '/admins'].map((path) => <Route key={path} path={path} element={<ManagementPage path={path} />} />)}
           </Route>
         </Routes>
-      </Suspense></Router>
+      </Suspense></HashRouter>
     </AuthProvider></AppErrorBoundary>
   );
 }
