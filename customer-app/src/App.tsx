@@ -10,6 +10,7 @@ import { Register } from './pages/Register';
 import { PatientDashboard } from './pages/patient/PatientDashboard';
 import { Verification } from './pages/student/Verification';
 import { AuthProvider } from './context/AuthContext';
+import { BrandingProvider } from './context/BrandingContext';
 import { clearAuthIntent, isProfileComplete, readAuthIntent, useAuth, type CustomerRole } from './context/AuthContext';
 
 const AuthNotice = () => {
@@ -73,7 +74,7 @@ const PublicSectionRoute = ({ sectionId }: { sectionId: string }) => {
 
 function App() {
   const Router = import.meta.env.BASE_URL === '/alasas1/' ? HashRouter : BrowserRouter;
-  return <AuthProvider><AuthNotice /><Router>
+  return <BrandingProvider><AuthProvider><AuthNotice /><Router>
       <Routes>
         <Route path="/" element={<HomeRoute />} />
         <Route path="/dashboard" element={<DashboardRoute />} />
@@ -93,7 +94,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/onboarding" element={<Onboarding />} />
       </Routes>
-    </Router></AuthProvider>;
+    </Router></AuthProvider></BrandingProvider>;
 }
 
 export default App;

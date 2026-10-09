@@ -2,10 +2,12 @@ import { Bell, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { isProfileComplete, useAuth } from '../../context/AuthContext';
+import { useBranding } from '../../context/BrandingContext';
 
 export const Header = () => {
   const [open, setOpen] = useState(false);
   const { user, profile, loading, signOut } = useAuth();
+  const branding = useBranding();
   const name = profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || 'مستخدم';
   const complete = isProfileComplete(profile);
   const close = () => setOpen(false);
@@ -14,13 +16,14 @@ export const Header = () => {
   return <header className="customer-header">
     <div className="header-inner">
       <Link to="/" className="brand-lockup" onClick={close}>
-        <div className="brand-tooth">✦</div>
-        <span>أسنان الأساس<small>منصة تربط المرضى بطلاب طب الأسنان</small></span>
+        {branding.customer_header_logo_url || branding.logo_url ? <img className="brand-image" src={branding.customer_header_logo_url || branding.logo_url || ''} alt={branding.platform_arabic_name} /> : <div className="brand-tooth">✦</div>}
+        <span>{branding.platform_arabic_name}<small>{branding.platform_english_name}</small></span>
       </Link>
       <nav className={open ? 'header-nav is-open' : 'header-nav'}>
         <Link to="/how-it-works" onClick={close}>كيف تعمل المنصة</Link>
         <Link to="/patients" onClick={close}>للمرضى</Link>
         <Link to="/students" onClick={close}>للطلاب</Link>
+        {profile?.role === 'STUDENT' && <Link to="/student/verification" onClick={close}>توثيق الطالب</Link>}
         <Link to="/faq" onClick={close}>الأسئلة الشائعة</Link>
         {user && !loading ? <>
           <Link className="mobile-account-link" to={complete ? '/dashboard' : '/onboarding'} onClick={close}>{complete ? 'حسابي' : 'أكمل حسابك'}</Link>
