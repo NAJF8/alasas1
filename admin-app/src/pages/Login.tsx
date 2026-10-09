@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { configurationError } from '../lib/supabase';
 import { Activity, AlertCircle, Globe2, Loader2, ShieldX } from 'lucide-react';
 
 export const Login = () => {
@@ -127,6 +128,13 @@ export const Login = () => {
               <div className="bg-red-50 p-4 rounded-xl flex items-start gap-3 border border-red-100">
                 <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-red-800 font-medium">{error}</p>
+              </div>
+            )}
+
+            {configurationError && (
+              <div className="bg-amber-50 p-4 rounded-xl flex items-start gap-3 border border-amber-100">
+                <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-amber-800 font-medium">{configurationError}</p>
               </div>
             )}
 
