@@ -29,7 +29,7 @@ function App() {
             <Route path="/" element={<DashboardHome />} />
             <Route path="/branding" element={<SettingsPage mode="branding" />} />
             <Route path="/settings" element={<SettingsPage mode="content" />} />
-            {['/users', '/patients', '/students', '/cases', '/requests', '/matches', '/appointments', '/universities', '/notifications', '/reports', '/admins'].map((path) => <Route key={path} path={path} element={<ManagementPage path={path} />} />)}
+            {['/users', '/patients', '/students', '/cases', '/requests', '/matches', '/appointments', '/universities', '/provinces', '/notifications', '/reports', '/admins'].map((path) => <Route key={path} path={path} element={<ManagementPage path={path} />} />)}
           </Route>
         </Routes>
       </Suspense></HashRouter>

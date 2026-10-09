@@ -1,45 +1,17 @@
-import { ArrowLeft, GraduationCap, Loader2, UserRound } from 'lucide-react';
+import { ArrowLeft, GraduationCap, Loader2, Phone, UserRound } from 'lucide-react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useState } from 'react';
-import { clearAuthIntent, isProfileComplete, readAuthIntent, useAuth, type CustomerRole } from '../context/AuthContext';
+import { isProfileComplete, readAuthIntent, useAuth, type CustomerRole } from '../context/AuthContext';
 
-const roles = [
-  { role: 'PATIENT' as const, title: 'مريض', body: 'اعرض حالتك وابحث عن طالب طب أسنان مناسب بالقرب منك.', icon: UserRound, tone: 'register-card-blue' },
-  { role: 'STUDENT' as const, title: 'طالب طب أسنان', body: 'ابحث عن حالات سريرية مناسبة لمتطلبات التدريب في جامعتك.', icon: GraduationCap, tone: 'register-card-teal' },
-];
+const roles = [{ role: 'PATIENT' as const, title: 'مريض', body: 'اعرض حالتك وابحث عن طالب طب أسنان مناسب بالقرب منك.', icon: UserRound, tone: 'register-card-blue' }, { role: 'STUDENT' as const, title: 'طالب طب أسنان', body: 'ابحث عن حالات سريرية مناسبة لمتطلبات التدريب في جامعتك.', icon: GraduationCap, tone: 'register-card-teal' }];
 
 export const Register = () => {
-  const { user, profile, signInWithGoogle } = useAuth();
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const requestedRole = searchParams.get('role');
-  const initialRole = requestedRole === 'PATIENT' || requestedRole === 'STUDENT' ? requestedRole : readAuthIntent()?.role || null;
-  const [selectedRole, setSelectedRole] = useState<CustomerRole | null>(initialRole);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const roleSelectionOnly = Boolean(user);
-
-  if (user && !roleSelectionOnly && readAuthIntent()?.role) return <Navigate to="/onboarding" replace />;
-
-  const continueFlow = async () => {
-    if (!selectedRole) { setError('اختر نوع الحساب أولاً.'); return; }
-    if (user) {
-      localStorage.setItem('customer-app:auth-intent', JSON.stringify({ flow: 'register', role: selectedRole, createdAt: Date.now(), nonce: crypto.randomUUID() }));
-      if (profile) {
-        if (profile.role !== selectedRole) {
-          clearAuthIntent();
-          setError(`هذا الحساب مسجل كـ${profile.role === 'PATIENT' ? 'مريض' : profile.role === 'STUDENT' ? 'طالب طب أسنان' : 'حساب إداري'}، ولا يمكن تغيير دوره من التسجيل العام. تواصل مع الإدارة إذا كنت تحتاج تغييراً رسمياً.`);
-          return;
-        }
-        clearAuthIntent();
-        navigate(isProfileComplete(profile) ? '/dashboard' : '/onboarding');
-        return;
-      }
-      navigate('/onboarding');
-      return;
-    }
-    setBusy(true); setError(await signInWithGoogle('register', selectedRole)); setBusy(false);
-  };
-
-  return <main className="auth-page register-page" dir="rtl"><section className="register-shell"><div className="register-intro"><span className="auth-eyebrow">أسنان الأساس</span><h1>{roleSelectionOnly ? 'إكمال حسابك' : 'إنشاء حساب جديد'}</h1><p>{roleSelectionOnly ? 'اختر نوع الحساب المطابق لحسابك الحالي لنكمل بياناتك دون تغيير صلاحياته.' : 'اختر المسار المناسب لك، ثم نكمل التسجيل بأمان عبر Google.'}</p></div><div className="register-cards">{roles.map(({ role, title, body, icon: Icon, tone }) => <button type="button" key={role} onClick={() => { setSelectedRole(role); setError(null); }} className={`register-card ${tone} ${selectedRole === role ? 'is-selected' : ''}`}><span className="register-icon"><Icon size={30} /></span><span className="register-card-copy"><strong>{title}</strong><small>{body}</small></span><span className="register-radio" aria-hidden="true">{selectedRole === role ? '✓' : ''}</span></button>)}</div>{error && <p className="auth-error">{error}</p>}<button type="button" onClick={() => void continueFlow()} disabled={busy} className="auth-primary-button">{busy ? <Loader2 className="animate-spin" size={19} /> : <ArrowLeft size={19} />}{roleSelectionOnly ? 'متابعة إلى إعداد الحساب' : 'المتابعة باستخدام Google'}</button>{!roleSelectionOnly && <p className="auth-switch">لديك حساب بالفعل؟ <Link to="/login">تسجيل الدخول</Link></p>}</section></main>;
+  const { user, profile, signInWithGoogle, sendPhoneOtp, verifyPhoneOtp } = useAuth(); const navigate = useNavigate(); const [searchParams] = useSearchParams();
+  const requestedRole = searchParams.get('role'); const initialRole = requestedRole === 'PATIENT' || requestedRole === 'STUDENT' ? requestedRole : readAuthIntent()?.role || null;
+  const [selectedRole, setSelectedRole] = useState<CustomerRole | null>(initialRole); const [phone, setPhone] = useState(''); const [otp, setOtp] = useState(''); const [otpSent, setOtpSent] = useState(false); const [busy, setBusy] = useState(false); const [error, setError] = useState<string | null>(null);
+  if (user && readAuthIntent()?.role) return <Navigate to={isProfileComplete(profile) ? '/dashboard' : '/onboarding'} replace />;
+  const send = async () => { if (!selectedRole) { setError('اختر نوع الحساب أولاً.'); return; } setBusy(true); const result = await sendPhoneOtp(phone, 'register', selectedRole); setError(result); if (!result) setOtpSent(true); setBusy(false); };
+  const verify = async () => { setBusy(true); const result = await verifyPhoneOtp(phone, otp); setError(result); if (!result) navigate('/onboarding', { replace: true }); setBusy(false); };
+  const google = async () => { if (!selectedRole) { setError('اختر نوع الحساب أولاً.'); return; } setBusy(true); setError(await signInWithGoogle('register', selectedRole)); setBusy(false); };
+  return <main className="auth-page register-page" dir="rtl"><section className="register-shell"><div className="register-intro"><span className="auth-eyebrow">أسنان الأساس</span><h1>إنشاء حساب جديد</h1><p>اختر نوع الحساب ثم استخدم هاتفك العراقي أو Google لإكمال التسجيل.</p></div><div className="register-cards">{roles.map(({ role, title, body, icon: Icon, tone }) => <button type="button" key={role} onClick={() => { setSelectedRole(role); setError(null); }} className={`register-card ${tone} ${selectedRole === role ? 'is-selected' : ''}`}><span className="register-icon"><Icon size={30} /></span><span className="register-card-copy"><strong>{title}</strong><small>{body}</small></span><span className="register-radio">{selectedRole === role ? '✓' : ''}</span></button>)}</div><label className="auth-field"><span>رقم الهاتف العراقي</span><input inputMode="tel" autoComplete="tel" placeholder="07XXXXXXXXX" value={phone} onChange={(event) => setPhone(event.target.value)} disabled={otpSent} /></label>{otpSent && <label className="auth-field"><span>رمز التحقق</span><input inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="123456" value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, ''))} /></label>}{error && <p className="auth-error">{error}</p>}{!otpSent ? <button type="button" onClick={() => void send()} disabled={busy} className="auth-primary-button">{busy ? <Loader2 className="animate-spin" size={19} /> : <Phone size={19} />} إرسال رمز الهاتف</button> : <button type="button" onClick={() => void verify()} disabled={busy} className="auth-primary-button">{busy ? <Loader2 className="animate-spin" size={19} /> : <ArrowLeft size={19} />} تحقق وأكمل الحساب</button>}<button type="button" onClick={() => void google()} disabled={busy} className="auth-google-button">المتابعة باستخدام Google</button><p className="auth-switch">لديك حساب بالفعل؟ <Link to="/login">تسجيل الدخول</Link></p></section></main>;
 };

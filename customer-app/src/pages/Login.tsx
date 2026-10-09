@@ -1,26 +1,15 @@
-import { Globe2, Loader2, ShieldCheck } from 'lucide-react';
+import { Globe2, Loader2, Phone, ShieldCheck } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import { useState } from 'react';
 import { isProfileComplete, useAuth } from '../context/AuthContext';
 
 export const Login = () => {
-  const { user, profile, loading, signInWithGoogle } = useAuth();
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
+  const { user, profile, loading, signInWithGoogle, sendPhoneOtp, verifyPhoneOtp, sendEmailOtp } = useAuth(); const [method, setMethod] = useState<'phone' | 'email' | 'google'>('phone'); const [phone, setPhone] = useState(''); const [email, setEmail] = useState(''); const [otp, setOtp] = useState(''); const [otpSent, setOtpSent] = useState(false); const [busy, setBusy] = useState(false); const [error, setError] = useState<string | null>(null);
   if (loading) return <div className="min-h-screen grid place-items-center" dir="rtl"><Loader2 className="animate-spin text-primary-600" /></div>;
   if (user) return <Navigate to={profile ? (profile.role !== 'PATIENT' && profile.role !== 'STUDENT' ? '/' : (isProfileComplete(profile) ? '/dashboard' : '/onboarding')) : '/register'} replace />;
-
-  const handleGoogleLogin = async () => {
-    setSubmitting(true);
-    setError(await signInWithGoogle('login'));
-    setSubmitting(false);
-  };
-
-  return <main className="auth-page" dir="rtl"><section className="auth-card"><div className="auth-mark"><ShieldCheck size={32} /></div><span className="auth-eyebrow">أسنان الأساس</span><h1>تسجيل الدخول</h1><p>ادخل إلى منصتك الآمنة لإدارة حالتك أو متابعة فرصك السريرية.</p>
-      {error && <p className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-700">تعذر بدء تسجيل الدخول: {error}</p>}
-      <button onClick={handleGoogleLogin} disabled={submitting} className="auth-google-button">
-        {submitting ? <Loader2 className="animate-spin" size={20} /> : <Globe2 size={20} aria-label="Google" />}
-        المتابعة باستخدام Google
-      </button><div className="auth-footer-link">ليس لديك حساب؟ <Link to="/register">إنشاء حساب جديد</Link></div></section></main>;
+  const send = async () => { setBusy(true); const result = await sendPhoneOtp(phone, 'login'); setError(result); if (!result) setOtpSent(true); setBusy(false); };
+  const verify = async () => { setBusy(true); setError(await verifyPhoneOtp(phone, otp)); setBusy(false); };
+  const google = async () => { setBusy(true); setError(await signInWithGoogle('login')); setBusy(false); };
+  const emailLogin = async () => { setBusy(true); setError(await sendEmailOtp(email)); setBusy(false); };
+  return <main className="auth-page" dir="rtl"><section className="auth-card"><div className="auth-mark"><ShieldCheck size={32} /></div><span className="auth-eyebrow">أسنان الأساس</span><h1>تسجيل الدخول</h1><p>استخدم رقم هاتفك العراقي أو البريد الموثق أو Google.</p><div className="auth-tabs"><button className={method === 'phone' ? 'active' : ''} onClick={() => setMethod('phone')} type="button"><Phone size={16} /> الهاتف</button><button className={method === 'email' ? 'active' : ''} onClick={() => setMethod('email')} type="button">البريد</button><button className={method === 'google' ? 'active' : ''} onClick={() => setMethod('google')} type="button"><Globe2 size={16} /> Google</button></div>{method === 'phone' ? <><label className="auth-field"><span>رقم الهاتف العراقي</span><input inputMode="tel" autoComplete="tel" placeholder="07XXXXXXXXX" value={phone} onChange={(event) => setPhone(event.target.value)} disabled={otpSent} /></label>{otpSent && <label className="auth-field"><span>رمز التحقق</span><input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, ''))} /></label>}<button onClick={() => void (otpSent ? verify() : send())} disabled={busy} className="auth-primary-button">{busy ? <Loader2 className="animate-spin" size={20} /> : <Phone size={20} />}{otpSent ? 'تحقق من الرمز' : 'إرسال رمز الهاتف'}</button></> : method === 'email' ? <><label className="auth-field"><span>البريد الإلكتروني الموثق</span><input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} /></label><button onClick={() => void emailLogin()} disabled={busy} className="auth-primary-button">{busy ? <Loader2 className="animate-spin" size={20} /> : '✉'} إرسال رابط الدخول</button></> : <button onClick={() => void google()} disabled={busy} className="auth-google-button">{busy ? <Loader2 className="animate-spin" size={20} /> : <Globe2 size={20} />} المتابعة باستخدام Google</button>}{error && <p className="auth-error">{error}</p>}<div className="auth-footer-link">ليس لديك حساب؟ <Link to="/register">إنشاء حساب جديد</Link></div></section></main>;
 };

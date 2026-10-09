@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import type { Session, User } from '@supabase/supabase-js';
 import { getOAuthRedirectUrl, supabase } from '../lib/supabase';
 import { AUTH_INTENT_TTL_MS, isFreshRegistrationCandidate, isValidRegistrationIntent, type RegistrationIntent } from './authRegistrationSecurity';
+import { formatPhoneAuthError, normalizeIraqiPhone } from '../lib/phoneAuth';
 
 export type CustomerRole = 'PATIENT' | 'STUDENT';
 
@@ -60,6 +61,9 @@ interface AuthContextValue {
   profile: Profile | null;
   loading: boolean;
   signInWithGoogle: (flow?: AuthFlow, role?: CustomerRole) => Promise<string | null>;
+  sendPhoneOtp: (phone: string, flow?: AuthFlow, role?: CustomerRole) => Promise<string | null>;
+  verifyPhoneOtp: (phone: string, token: string) => Promise<string | null>;
+  sendEmailOtp: (email: string) => Promise<string | null>;
   signOut: () => Promise<void>;
   saveOnboarding: (values: Partial<Profile> & { role: CustomerRole }) => Promise<string | null>;
   refreshProfile: () => Promise<Profile | null>;
@@ -179,8 +183,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return error?.message ?? null;
   };
 
+  const sendPhoneOtp = async (phone: string) => {
+    const normalized = normalizeIraqiPhone(phone);
+    if (!normalized) return 'أدخل رقماً عراقياً صحيحاً بصيغة 07XXXXXXXXX.';
+    return 'تسجيل الهاتف غير مفعّل حالياً: لم يتم اعتماد مزود SMS في Supabase، لذلك لم تُرسل أي رسالة مدفوعة. استخدم البريد الإلكتروني أو Google.';
+  };
+
+  const verifyPhoneOtp = async (phone: string, token: string) => {
+    const normalized = normalizeIraqiPhone(phone);
+    if (!normalized) return 'رقم الهاتف غير صالح.';
+    if (!/^\d{6}$/.test(token.trim())) return 'أدخل رمز التحقق المكوّن من 6 أرقام.';
+    const { error } = await supabase.auth.verifyOtp({ phone: normalized, token: token.trim(), type: 'sms' });
+    if (error) return formatPhoneAuthError(error.message);
+    return null;
+  };
+
+  const sendEmailOtp = async (email: string) => {
+    const normalized = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return 'أدخل بريداً إلكترونياً صحيحاً.';
+    const { error } = await supabase.auth.signInWithOtp({ email: normalized, options: { shouldCreateUser: false, emailRedirectTo: getOAuthRedirectUrl() } });
+    return error ? 'تعذر إرسال رابط الدخول. تحقق من إعدادات البريد ثم أعد المحاولة.' : null;
+  };
+
   const saveOnboarding = async (values: Partial<Profile> & { role: CustomerRole }) => {
     if (!user) return 'يجب تسجيل الدخول أولاً.';
+    const normalizedPhone = normalizeIraqiPhone(String(values.phone || ''));
+    if (!normalizedPhone) return 'أدخل رقماً عراقياً صحيحاً بصيغة 07XXXXXXXXX.';
     if (profile && profile.role !== 'PATIENT' && profile.role !== 'STUDENT') return 'لا يمكن تعديل هذا النوع من الحساب من تطبيق العملاء.';
     const intent = readAuthIntent();
     if (!profile && !isFreshRegistrationCandidate(user, intent)) {
@@ -191,7 +219,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const role = profile ? profile.role : (values.role === 'STUDENT' ? 'STUDENT' : 'PATIENT');
     const { data, error } = await supabase
       .from('profiles')
-      .upsert({ ...values, id: user.id, role, full_name: values.full_name || metadataName(user) }, { onConflict: 'id' })
+      .upsert({ ...values, id: user.id, role, phone: normalizedPhone, full_name: values.full_name || metadataName(user) }, { onConflict: 'id' })
       .select(PROFILE_FIELDS)
       .single();
     if (error) return error.message;
@@ -206,7 +234,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return null;
   };
 
-  return <AuthContext.Provider value={{ user, profile, loading, authNotice, signInWithGoogle, signOut: async () => { clearAuthIntent(); await supabase.auth.signOut(); }, saveOnboarding, refreshProfile }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, profile, loading, authNotice, signInWithGoogle, sendPhoneOtp, verifyPhoneOtp, sendEmailOtp, signOut: async () => { clearAuthIntent(); await supabase.auth.signOut(); }, saveOnboarding, refreshProfile }}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
