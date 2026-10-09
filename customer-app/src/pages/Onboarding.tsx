@@ -59,7 +59,15 @@ export const Onboarding = () => {
     const table = role === 'PATIENT' ? 'patient_preferred_universities' : 'student_preferred_universities'; const column = role === 'PATIENT' ? 'patient_id' : 'student_id';
     const { error: deleteError } = await supabase.from(table).delete().eq(column, user.id);
     const { error: preferenceError } = deleteError ? { error: deleteError } : await supabase.from(table).insert(selectedIds.map((university_id) => ({ [column]: user.id, university_id })));
-    if (preferenceError) setError(preferenceError.message); else {
+    if (preferenceError) setError(`تعذر حفظ الجامعات المفضلة: ${preferenceError.message}`); else {
+      const { data: savedPreferences, error: readbackError } = await supabase.from(table).select('university_id').eq(column, user.id);
+      const savedIds = (savedPreferences || []).map((row) => row.university_id as string).sort();
+      const expectedIds = [...selectedIds].sort();
+      if (readbackError || savedIds.length !== expectedIds.length || savedIds.some((id, index) => id !== expectedIds[index])) {
+        setError(readbackError?.message || 'تم حفظ الملف لكن لم تتطابق قراءة الجامعات المحفوظة. لم يتم فتح الحساب.');
+        setSaving(false);
+        return;
+      }
       const savedProfile = await refreshProfile();
       if (!savedProfile || !isProfileComplete(savedProfile)) setError('تم الحفظ لكن تعذر قراءة الملف والجامعات المحفوظة. أعد المحاولة.');
       else { clearAuthIntent(); navigate('/dashboard', { replace: true }); }

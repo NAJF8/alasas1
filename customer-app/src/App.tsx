@@ -7,6 +7,8 @@ import { Login } from './pages/Login';
 import { Onboarding } from './pages/Onboarding';
 import { NewRequest } from './pages/student/NewRequest';
 import { Register } from './pages/Register';
+import { PatientDashboard } from './pages/patient/PatientDashboard';
+import { Verification } from './pages/student/Verification';
 import { AuthProvider } from './context/AuthContext';
 import { clearAuthIntent, isProfileComplete, readAuthIntent, useAuth, type CustomerRole } from './context/AuthContext';
 
@@ -19,6 +21,12 @@ const HomeRoute = () => {
   const { user, profile, loading } = useAuth();
   if (!loading && user) {
     const intent = readAuthIntent();
+    // A persisted session can outlive the short-lived OAuth intent. A customer
+    // with an incomplete profile must still be sent to onboarding.
+    if (profile && (profile.role === 'PATIENT' || profile.role === 'STUDENT')) {
+      clearAuthIntent();
+      return <Navigate to={isProfileComplete(profile) ? '/dashboard' : '/onboarding'} replace />;
+    }
     if (intent) {
       if (intent.flow === 'register') {
         if (profile) {
@@ -32,6 +40,7 @@ const HomeRoute = () => {
       if (profile) return <Navigate to={isProfileComplete(profile) ? '/dashboard' : '/onboarding'} replace />;
       return <Navigate to="/register" replace />;
     }
+    if (!profile) return <Navigate to="/register" replace />;
   }
   return <Home />;
 };
@@ -42,7 +51,7 @@ const DashboardRoute = () => {
   if (!user) return <Navigate to="/login" replace />;
   if (!isProfileComplete(profile)) return <Navigate to="/onboarding" replace />;
   if (!profile) return <Navigate to="/onboarding" replace />;
-  return profile.role === 'STUDENT' ? <Navigate to="/student/search" replace /> : <Navigate to="/patient/new-case" replace />;
+  return profile.role === 'STUDENT' ? <Navigate to="/student/search" replace /> : <Navigate to="/patient/dashboard" replace />;
 };
 
 const ProtectedDashboard = ({ role, children }: { role: CustomerRole; children: React.ReactNode }) => {
@@ -69,8 +78,10 @@ function App() {
         <Route path="/" element={<HomeRoute />} />
         <Route path="/dashboard" element={<DashboardRoute />} />
         <Route path="/patient/new-case" element={<ProtectedDashboard role="PATIENT"><NewCase /></ProtectedDashboard>} />
+        <Route path="/patient/dashboard" element={<ProtectedDashboard role="PATIENT"><PatientDashboard /></ProtectedDashboard>} />
         <Route path="/student/search" element={<ProtectedDashboard role="STUDENT"><SearchCases /></ProtectedDashboard>} />
         <Route path="/student/request" element={<ProtectedDashboard role="STUDENT"><NewRequest /></ProtectedDashboard>} />
+        <Route path="/student/verification" element={<ProtectedDashboard role="STUDENT"><Verification /></ProtectedDashboard>} />
         {/* Placeholder for other routes */}
         <Route path="/how-it-works" element={<PublicSectionRoute sectionId="how-it-works" />} />
         <Route path="/patients" element={<Navigate to="/patient/new-case" replace />} />
