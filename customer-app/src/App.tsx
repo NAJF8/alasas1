@@ -1,17 +1,18 @@
 import { BrowserRouter, HashRouter, Navigate, Routes, Route } from 'react-router-dom';
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Home } from './pages/Home';
-import { NewCase } from './pages/patient/NewCase';
-import { SearchCases } from './pages/student/SearchCases';
 import { Login } from './pages/Login';
-import { Onboarding } from './pages/Onboarding';
-import { NewRequest } from './pages/student/NewRequest';
 import { Register } from './pages/Register';
-import { PatientDashboard } from './pages/patient/PatientDashboard';
-import { Verification } from './pages/student/Verification';
 import { AuthProvider } from './context/AuthContext';
 import { BrandingProvider } from './context/BrandingContext';
 import { clearAuthIntent, isProfileComplete, readAuthIntent, useAuth, type CustomerRole } from './context/AuthContext';
+
+const NewCase = lazy(() => import('./pages/patient/NewCase').then((module) => ({ default: module.NewCase })));
+const SearchCases = lazy(() => import('./pages/student/SearchCases').then((module) => ({ default: module.SearchCases })));
+const Onboarding = lazy(() => import('./pages/Onboarding').then((module) => ({ default: module.Onboarding })));
+const NewRequest = lazy(() => import('./pages/student/NewRequest').then((module) => ({ default: module.NewRequest })));
+const PatientDashboard = lazy(() => import('./pages/patient/PatientDashboard').then((module) => ({ default: module.PatientDashboard })));
+const Verification = lazy(() => import('./pages/student/Verification').then((module) => ({ default: module.Verification })));
 
 const AuthNotice = () => {
   const { authNotice } = useAuth();
@@ -74,7 +75,7 @@ const PublicSectionRoute = ({ sectionId }: { sectionId: string }) => {
 
 function App() {
   const Router = import.meta.env.BASE_URL === '/alasas1/' ? HashRouter : BrowserRouter;
-  return <BrandingProvider><AuthProvider><AuthNotice /><Router>
+  return <BrandingProvider><AuthProvider><AuthNotice /><Router><Suspense fallback={<div className="min-h-screen grid place-items-center" dir="rtl">جارٍ تحميل الصفحة...</div>}>
       <Routes>
         <Route path="/" element={<HomeRoute />} />
         <Route path="/dashboard" element={<DashboardRoute />} />
@@ -94,7 +95,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/onboarding" element={<Onboarding />} />
       </Routes>
-    </Router></AuthProvider></BrandingProvider>;
+    </Suspense></Router></AuthProvider></BrandingProvider>;
 }
 
 export default App;

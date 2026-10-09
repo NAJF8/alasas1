@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { getOAuthRedirectUrl, supabase } from '../lib/supabase';
 
@@ -26,8 +26,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const profileCache = useRef(new Map<string, Profile | null>());
 
   const fetchProfile = async (userId: string): Promise<Profile | null> => {
+    if (profileCache.current.has(userId)) return profileCache.current.get(userId) || null;
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -39,7 +41,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         console.error('Profile fetch error:', error.message);
         return null;
       }
-      return data as Profile;
+      const nextProfile = data as Profile;
+      profileCache.current.set(userId, nextProfile);
+      return nextProfile;
     } catch (err) {
       console.error('Profile fetch exception:', err);
       return null;
@@ -87,6 +91,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
+    profileCache.current.clear();
   }, []);
 
   const isAdmin =

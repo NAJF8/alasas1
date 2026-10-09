@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { getActiveProvinces, getActiveUniversities } from '../../lib/referenceData';
 
 const STEPS = ['المعلومات الأساسية', 'وصف المشكلة', 'الأعراض', 'الصور', 'التوفر والجامعات', 'مراجعة وإرسال'];
 type Option = { id: string; name_ar: string };
@@ -14,7 +15,7 @@ const periods = ['صباحاً', 'ظهراً', 'مساءً'];
 export const PatientCaseWizard = () => {
   const { user, profile } = useAuth(); const navigate = useNavigate(); const fileInput = useRef<HTMLInputElement>(null); const [currentStep, setCurrentStep] = useState(0); const [provinces, setProvinces] = useState<Option[]>([]); const [areas, setAreas] = useState<Option[]>([]); const [universities, setUniversities] = useState<Option[]>([]); const [saving, setSaving] = useState(false); const [error, setError] = useState<string | null>(null); const [success, setSuccess] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({ province_id: profile?.province_id || '', area_id: profile?.area_id || '', patient_age: '', patient_gender: profile?.gender || '', description: '', symptoms: [], images: [], available_days: [], preferred_periods: [], university_ids: [] });
-  useEffect(() => { void Promise.all([supabase.from('provinces').select('id, name_ar').eq('is_active', true).order('name_ar'), supabase.from('universities').select('id, name_ar').eq('is_active', true).eq('has_dental_college', true).order('name_ar')]).then(([provinceResult, universityResult]) => { setProvinces((provinceResult.data || []) as Option[]); setUniversities((universityResult.data || []) as Option[]); }); }, []);
+  useEffect(() => { void Promise.all([getActiveProvinces(), getActiveUniversities()]).then(([provinceRows, universityRows]) => { setProvinces(provinceRows as Option[]); setUniversities(universityRows as Option[]); }); }, []);
   useEffect(() => { if (!formData.province_id) { setAreas([]); return; } void supabase.from('areas').select('id, name_ar').eq('province_id', formData.province_id).eq('is_active', true).order('name_ar').then(({ data }) => setAreas((data || []) as Option[])); }, [formData.province_id]);
   useEffect(() => { if (!user) return; void supabase.from('patient_preferred_universities').select('university_id').eq('patient_id', user.id).then(({ data }) => setFormData((current) => ({ ...current, university_ids: (data || []).map((row) => row.university_id as string) }))); }, [user]);
   const set = <K extends keyof FormData>(key: K, value: FormData[K]) => setFormData((current) => ({ ...current, [key]: value }));

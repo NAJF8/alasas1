@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { getOAuthRedirectUrl, supabase } from '../lib/supabase';
 import { AUTH_INTENT_TTL_MS, isFreshRegistrationCandidate, isValidRegistrationIntent, type RegistrationIntent } from './authRegistrationSecurity';
@@ -85,24 +85,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [authNotice, setAuthNotice] = useState<string | null>(null);
 
-  const fetchProfile = useCallback(async (userId: string) => {
-    for (let attempt = 0; attempt < 3; attempt += 1) {
+  const profileCache = useRef(new Map<string, Profile | null>());
+  const profileInFlight = useRef(new Map<string, Promise<Profile | null>>());
+  const fetchProfile = useCallback(async (userId: string, force = false) => {
+    if (!force && profileCache.current.has(userId)) return profileCache.current.get(userId) || null;
+    if (!force && profileInFlight.current.has(userId)) return profileInFlight.current.get(userId) || null;
+    const request = (async () => {
       const { data, error } = await supabase.from('profiles').select(PROFILE_FIELDS).eq('id', userId).maybeSingle();
-      if (!error && data) {
-        const profile = data as Profile;
-        if (profile.role === 'PATIENT' || profile.role === 'STUDENT') {
-          const table = profile.role === 'PATIENT' ? 'patient_preferred_universities' : 'student_preferred_universities';
-          const column = profile.role === 'PATIENT' ? 'patient_id' : 'student_id';
-          const { data: preferences, error: preferenceError } = await supabase.from(table).select('university_id').eq(column, userId);
-          if (preferenceError) console.error('Preferred universities fetch error:', preferenceError.message);
-          profile.preferred_university_ids = (preferences || []).map((row) => row.university_id as string);
-        }
-        return profile;
+      if (error) { if (error.code !== 'PGRST116') console.error('Profile fetch error:', error.message); profileCache.current.set(userId, null); return null; }
+      if (!data) { profileCache.current.set(userId, null); return null; }
+      const profile = data as Profile;
+      if (profile.role === 'PATIENT' || profile.role === 'STUDENT') {
+        const table = profile.role === 'PATIENT' ? 'patient_preferred_universities' : 'student_preferred_universities';
+        const column = profile.role === 'PATIENT' ? 'patient_id' : 'student_id';
+        const { data: preferences, error: preferenceError } = await supabase.from(table).select('university_id').eq(column, userId);
+        if (preferenceError) console.error('Preferred universities fetch error:', preferenceError.message);
+        profile.preferred_university_ids = (preferences || []).map((row) => row.university_id as string);
       }
-      if (error && error.code !== 'PGRST116') console.error('Profile fetch error:', error.message);
-      if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 250));
-    }
-    return null;
+      profileCache.current.set(userId, profile);
+      return profile;
+    })();
+    profileInFlight.current.set(userId, request);
+    try { return await request; } finally { profileInFlight.current.delete(userId); }
   }, []);
 
   const handleSession = useCallback(async (session: Session | null) => {
@@ -123,7 +127,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const { error: roleError } = await supabase.from('profiles').update({ role: intent.role }).eq('id', session.user.id);
         if (roleError) console.error('Registration role resolution error:', roleError.message);
         else {
-          nextProfile = await fetchProfile(session.user.id);
+          nextProfile = await fetchProfile(session.user.id, true);
           clearAuthIntent();
         }
         } else {
@@ -142,7 +146,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const refreshProfile = useCallback(async () => {
     if (!user) return null;
-    const nextProfile = await fetchProfile(user.id);
+    const nextProfile = await fetchProfile(user.id, true);
     setProfile(nextProfile);
     return nextProfile;
   }, [fetchProfile, user]);
@@ -195,6 +199,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: preferences, error: preferenceError } = await supabase.from(table).select('university_id').eq(column, user.id);
     if (preferenceError) return preferenceError.message;
     savedProfile.preferred_university_ids = (preferences || []).map((row) => row.university_id as string);
+    profileCache.current.set(user.id, savedProfile);
     setProfile(savedProfile);
     return null;
   };

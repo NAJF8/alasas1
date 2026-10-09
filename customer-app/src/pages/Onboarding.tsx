@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { clearAuthIntent, isProfileComplete, readAuthIntent, useAuth, type CustomerRole } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { getActiveProvinces, getActiveUniversities } from '../lib/referenceData';
 
 type Option = { id: string; name_ar: string; province_id?: string };
 type Values = { full_name: string; phone: string; whatsapp: string; gender: string; birth_date: string; province_id: string; area_id: string; university_id: string; stage: string };
@@ -24,7 +25,7 @@ export const Onboarding = () => {
   const steps = isStudent ? ['معلومات الحساب', 'المعلومات الأكاديمية', 'الجامعات المفضلة', 'المراجعة'] : ['معلومات الحساب', 'الجامعات المناسبة', 'المراجعة'];
 
   useEffect(() => { if (!profile) return; setValues((current) => ({ ...current, full_name: profile.full_name || current.full_name, phone: profile.phone || '', whatsapp: profile.whatsapp || '', gender: profile.gender || '', birth_date: profile.birth_date || '', province_id: profile.province_id || '', area_id: profile.area_id || '', university_id: profile.university_id || '', stage: profile.stage || '' })); }, [profile]);
-  useEffect(() => { void Promise.all([supabase.from('provinces').select('id, name_ar').eq('is_active', true).order('name_ar'), supabase.from('universities').select('id, name_ar, province_id').eq('is_active', true).eq('has_dental_college', true).order('name_ar')]).then(([provinceResult, universityResult]) => { setProvinces((provinceResult.data || []) as Option[]); setUniversities((universityResult.data || []) as Option[]); setLoadingData(false); }); }, []);
+  useEffect(() => { void Promise.all([getActiveProvinces(), getActiveUniversities()]).then(([provinceRows, universityRows]) => { setProvinces(provinceRows as Option[]); setUniversities(universityRows as Option[]); setLoadingData(false); }); }, []);
   useEffect(() => { if (!values.province_id) { setAreas([]); return; } void supabase.from('areas').select('id, name_ar').eq('province_id', values.province_id).eq('is_active', true).order('name_ar').then(({ data }) => setAreas((data || []) as Option[])); }, [values.province_id]);
   useEffect(() => { if (!user || !role) return; const table = role === 'PATIENT' ? 'patient_preferred_universities' : 'student_preferred_universities'; const column = role === 'PATIENT' ? 'patient_id' : 'student_id'; void supabase.from(table).select('university_id').eq(column, user.id).then(({ data }) => setSelectedIds((data || []).map((row) => row.university_id as string))); }, [role, user]);
 
