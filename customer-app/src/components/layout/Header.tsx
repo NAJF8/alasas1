@@ -16,7 +16,7 @@ export const Header = () => {
   return <header className="customer-header">
     <div className="header-inner">
       <Link to="/" className="brand-lockup" onClick={close}>
-        {branding.customer_header_logo_url || branding.logo_url ? <img className="brand-image" src={branding.customer_header_logo_url || branding.logo_url || ''} alt={branding.platform_arabic_name} /> : <div className="brand-tooth">✦</div>}
+        {branding.customer_header_logo_url || branding.logo_url ? <img className="brand-image" src={branding.customer_header_logo_url || branding.logo_url || ''} alt={branding.platform_arabic_name} /> : <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>}
         <span>{branding.platform_arabic_name}<small>{branding.platform_english_name}</small></span>
       </Link>
       <nav className={open ? 'header-nav is-open' : 'header-nav'}>
@@ -34,7 +34,7 @@ export const Header = () => {
         </>}
       </nav>
       <div className="header-actions">
-        <button className="icon-button" aria-label="الإشعارات"><Bell size={19} /></button>
+        <Link className="icon-button" to={user ? (profile?.role === 'STUDENT' ? '/student/search' : '/patient/dashboard') : '/login'} aria-label="الإشعارات"><Bell size={19} /></Link>
         {loading || !user ? <>
           <Link className="header-login" to="/login">تسجيل الدخول</Link>
           <Link className="primary-button header-cta" to="/register">إنشاء حساب</Link>
