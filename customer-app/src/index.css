@@ -262,3 +262,55 @@ main p, main h1, main h2, main h3, main article, main form { overflow-wrap: anyw
   .hero-actions > .text-link { grid-column: auto; }
   .hero-actions > .primary-button, .hero-actions > .secondary-button { width: 100%; }
 }
+/* Simplified customer registration flow: role is locked before the form, then the form is role-specific. */
+.registration-picker { text-align: center; }
+.registration-picker .register-cards { margin-top: 28px; }
+.registration-picker .register-radio { font-size: 19px; }
+.registration-flow-shell { width: min(100%, 820px); text-align: right; }
+.registration-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 22px; }
+.registration-header h1 { margin: 9px 0 10px; color: var(--aa-navy); font: 800 34px/1.25 Tajawal, sans-serif; }
+.registration-header p { margin: 0; color: #7891a4; font-size: 14px; line-height: 1.9; }
+.registration-role-badge { display: inline-flex; align-items: center; gap: 7px; border: 1px solid #cce9eb; border-radius: 999px; padding: 10px 14px; background: #effcfb; color: #078f86; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.registration-progress { display: grid; grid-template-columns: 1fr 90px 1fr; align-items: center; gap: 10px; margin: 32px 0 24px; }
+.registration-progress-step { display: flex; align-items: center; gap: 9px; color: #a2b1ba; font-size: 12px; font-weight: 700; }
+.registration-progress-step span { width: 31px; height: 31px; display: grid; place-items: center; border-radius: 50%; background: #eaf1f5; color: #8299a8; }
+.registration-progress-step.is-current { color: #0d67b5; }
+.registration-progress-step.is-current span, .registration-progress-step.is-done span { color: #fff; background: #0d67b5; }
+.registration-progress-line { height: 4px; border-radius: 99px; background: #e4eef3; }
+.registration-progress-line.is-done { background: linear-gradient(90deg, #0d67b5, #0aa89c); }
+.registration-form { background: #fff; border: 1px solid #e1edf2; border-radius: 25px; box-shadow: 0 18px 48px rgba(29,85,115,.09); padding: 33px; }
+.registration-step-heading { padding-bottom: 22px; border-bottom: 1px solid #edf3f5; }
+.registration-step-heading > span { color: #0aa399; font-size: 11px; font-weight: 800; }
+.registration-step-heading h2 { margin: 7px 0 5px; color: #123d73; font: 800 27px Tajawal; }
+.registration-step-heading p { margin: 0; color: #7891a4; font-size: 13px; }
+.registration-form .auth-field { text-align: right; margin-top: 24px; }
+.registration-form .auth-field small { color: #8299a8; font-size: 11px; }
+.registration-pin-field { position: relative; }
+.registration-pin-field input { width: 100%; min-height: 50px; border: 1px solid #d7e7ef; border-radius: 14px; background: #fbfdfe; color: #234b6b; padding: 0 14px 0 48px; outline: none; letter-spacing: .25em; }
+.registration-pin-field input:focus { border-color: #0aa399; box-shadow: 0 0 0 4px rgba(18,167,149,.1); }
+.registration-pin-field button { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); border: 0; background: transparent; color: #6d8498; cursor: pointer; }
+.registration-security-note, .registration-footer-note { display: flex; align-items: flex-start; gap: 8px; color: #6f879b; font-size: 12px; line-height: 1.8; }
+.registration-security-note { margin-top: 19px; }
+.registration-security-note svg, .registration-footer-note svg { flex: 0 0 auto; color: #0aa399; margin-top: 2px; }
+.registration-phone-summary { display: flex; align-items: center; gap: 10px; margin-top: 23px; padding: 12px 14px; border: 1px solid #dceef1; border-radius: 13px; background: #f4fcfb; color: #6f879b; font-size: 12px; }
+.registration-phone-summary strong { color: #0b7f7b; direction: ltr; }
+.registration-phone-summary button { margin-inline-start: auto; border: 0; background: transparent; color: #0d67b5; cursor: pointer; font-weight: 800; font-size: 12px; }
+.registration-form .onboarding-grid { padding-top: 22px; }
+.registration-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 25px; padding-top: 21px; border-top: 1px solid #edf3f5; }
+.registration-actions .auth-primary-button { width: auto; min-width: 230px; padding-inline: 20px; }
+.registration-unavailable { display: flex; align-items: flex-start; gap: 10px; margin-top: 20px; padding: 14px 15px; border: 1px solid #f0d9a8; border-radius: 14px; background: #fff8e9; color: #8a5a16; font-size: 12px; line-height: 1.8; }
+.registration-unavailable svg { flex: 0 0 auto; margin-top: 2px; }
+.registration-unavailable strong { display: block; font-weight: 800; }
+.registration-unavailable p { margin: 3px 0 0; }
+.registration-footer-note { justify-content: center; margin: 18px auto 0; max-width: 590px; text-align: center; }
+.registration-flow-shell > .auth-switch { text-align: center; }
+@media (max-width: 560px) {
+  .registration-header { display: block; }
+  .registration-role-badge { margin-top: 16px; white-space: normal; }
+  .registration-form { padding: 22px 17px; border-radius: 22px; }
+  .registration-progress { grid-template-columns: 1fr 28px 1fr; gap: 6px; }
+  .registration-progress-step { display: grid; justify-items: center; gap: 5px; text-align: center; }
+  .registration-progress-step small { font-size: 10px; }
+  .registration-actions { flex-wrap: wrap; }
+  .registration-actions .auth-primary-button, .registration-actions .wizard-back { min-width: 0; min-height: 48px; flex: 1 1 160px; }
+}

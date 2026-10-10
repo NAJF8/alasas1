@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test:registration": "node --experimental-strip-types scripts/registration-security.test.ts",
+    "test:registration-flow": "node --experimental-strip-types scripts/registration-flow.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {

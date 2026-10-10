@@ -90,8 +90,8 @@ function App() {
         <Route path="/faq" element={<PublicSectionRoute sectionId="faq" />} />
         <Route path="/register" element={<RegistrationRequest />} />
         <Route path="/register-request" element={<RegistrationRequest />} />
-        <Route path="/register/patient" element={<Navigate to="/login" replace />} />
-        <Route path="/register/student" element={<Navigate to="/login" replace />} />
+        <Route path="/register/patient" element={<Navigate to="/register?role=PATIENT&start=1" replace />} />
+        <Route path="/register/student" element={<Navigate to="/register?role=STUDENT&start=1" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/onboarding" element={<Onboarding />} />
       </Routes></HashRouter>
