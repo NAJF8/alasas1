@@ -285,10 +285,14 @@ main p, main h1, main h2, main h3, main article, main form { overflow-wrap: anyw
 .registration-step-heading p { margin: 0; color: #7891a4; font-size: 13px; }
 .registration-form .auth-field { text-align: right; margin-top: 24px; }
 .registration-form .auth-field small { color: #8299a8; font-size: 11px; }
-.registration-pin-field { position: relative; }
-.registration-pin-field input { width: 100%; min-height: 50px; border: 1px solid #d7e7ef; border-radius: 14px; background: #fbfdfe; color: #234b6b; padding: 0 14px 0 48px; outline: none; letter-spacing: .25em; }
-.registration-pin-field input:focus { border-color: #0aa399; box-shadow: 0 0 0 4px rgba(18,167,149,.1); }
-.registration-pin-field button { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); border: 0; background: transparent; color: #6d8498; cursor: pointer; }
+.registration-password-field { position: relative; }
+.registration-password-field input { width: 100%; min-height: 50px; border: 1px solid #d7e7ef; border-radius: 14px; background: #fbfdfe; color: #234b6b; padding: 0 14px 0 48px; outline: none; direction: ltr; text-align: left; }
+.registration-password-field input:focus { border-color: #0aa399; box-shadow: 0 0 0 4px rgba(18,167,149,.1); }
+.registration-password-field button { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); border: 0; background: transparent; color: #6d8498; cursor: pointer; }
+.registration-password-strength { margin-top: 7px; font-size: 11px; font-weight: 800; }
+.registration-password-strength.strength-weak { color: #c2410c; }
+.registration-password-strength.strength-medium { color: #a16207; }
+.registration-password-strength.strength-strong { color: #0f766e; }
 .registration-security-note, .registration-footer-note { display: flex; align-items: flex-start; gap: 8px; color: #6f879b; font-size: 12px; line-height: 1.8; }
 .registration-security-note { margin-top: 19px; }
 .registration-security-note svg, .registration-footer-note svg { flex: 0 0 auto; color: #0aa399; margin-top: 2px; }

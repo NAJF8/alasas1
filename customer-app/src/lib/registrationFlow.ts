@@ -28,13 +28,29 @@ export const normalizeArabicDigits = (value: string) => value.replace(/[٠-٩۰-
   return String(index >= 0 ? index : easternArabicIndic.indexOf(digit));
 });
 
-const weakPins = new Set(['000000', '111111', '222222', '333333', '444444', '555555', '666666', '777777', '888888', '999999', '123456', '654321', '121212', '112233', '123123']);
+const weakPasswords = new Set(['password', 'password1', 'password123', 'qwerty', 'qwerty123', 'letmein', 'welcome', 'admin123', 'iloveyou', 'abc12345', '12345678', '123456789', '1234567890']);
 
-export const isStrongRegistrationPin = (value: string) => {
-  const pin = normalizeArabicDigits(value);
-  if (!/^\d{6}$/.test(pin) || weakPins.has(pin)) return false;
-  const digits = pin.split('').map(Number);
-  const ascending = digits.every((digit, index) => index === 0 || digit === digits[index - 1] + 1);
-  const descending = digits.every((digit, index) => index === 0 || digit === digits[index - 1] - 1);
-  return !ascending && !descending;
+export const REGISTRATION_PASSWORD_MAX_LENGTH = 128;
+
+export const normalizeRegistrationPassword = (value: string) => value.normalize('NFKC').slice(0, REGISTRATION_PASSWORD_MAX_LENGTH);
+
+export const isStrongRegistrationPassword = (value: string) => {
+  const password = normalizeRegistrationPassword(value);
+  if (password.length < 8 || password.length > REGISTRATION_PASSWORD_MAX_LENGTH) return false;
+  const lower = password.toLowerCase();
+  if (weakPasswords.has(lower) || /^([a-z0-9!@#$%^&*])\1+$/.test(lower)) return false;
+  if (/^(?:01234567|12345678|23456789|34567890|98765432|87654321|76543210)$/.test(lower)) return false;
+  return /[A-Za-z]/.test(password) && /[^A-Za-z]/.test(password);
+};
+
+export const registrationPasswordStrength = (value: string): 'ضعيفة' | 'متوسطة' | 'قوية' => {
+  const password = normalizeRegistrationPassword(value);
+  let score = 0;
+  if (password.length >= 8) score++;
+  if (password.length >= 12) score++;
+  if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
+  if (/\d/.test(password)) score++;
+  if (/[^A-Za-z0-9]/.test(password)) score++;
+  if (!password || weakPasswords.has(password.toLowerCase())) return 'ضعيفة';
+  return score >= 4 ? 'قوية' : score >= 2 ? 'متوسطة' : 'ضعيفة';
 };

@@ -13,7 +13,7 @@ create table if not exists public.registration_requests (
   province_id uuid not null references public.provinces(id),
   university_id uuid references public.universities(id),
   stage text,
-  pin_hash text not null,
+  password_hash text not null,
   status text not null default 'PENDING' check (status in ('PENDING', 'VERIFIED', 'REJECTED', 'SUSPENDED')),
   rejection_reason text,
   reviewed_at timestamptz,
@@ -100,7 +100,7 @@ $$;
 revoke all on function public.consume_registration_rate_limit(text, integer, integer) from public, anon, authenticated;
 grant execute on function public.consume_registration_rate_limit(text, integer, integer) to service_role;
 
-comment on table public.registration_requests is 'Server-created registration requests. PIN hashes are never exposed to clients or admins.';
+comment on table public.registration_requests is 'Server-created registration requests. Password hashes are never exposed to clients or admins.';
 comment on table public.registration_activation_invites is 'Single-use activation records; approval alone does not prove phone ownership.';
 
 -- The Edge Functions call these transaction wrappers with the service role.
@@ -114,15 +114,15 @@ create or replace function public.create_registration_request(
   p_province_id uuid,
   p_university_id uuid,
   p_stage text,
-  p_pin_hash text
+  p_password_hash text
 ) returns table(id uuid, status text, created_at timestamptz)
 language plpgsql
 security invoker
 set search_path = pg_catalog, public
 as $$
 begin
-  insert into public.registration_requests(full_name, phone_e164, role, gender, province_id, university_id, stage, pin_hash)
-  values (p_full_name, p_phone_e164, p_role, p_gender, p_province_id, p_university_id, p_stage, p_pin_hash)
+  insert into public.registration_requests(full_name, phone_e164, role, gender, province_id, university_id, stage, password_hash)
+  values (p_full_name, p_phone_e164, p_role, p_gender, p_province_id, p_university_id, p_stage, p_password_hash)
   returning registration_requests.id, registration_requests.status, registration_requests.created_at
   into id, status, created_at;
 

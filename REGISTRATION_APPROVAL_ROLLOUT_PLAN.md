@@ -50,4 +50,4 @@ Then disable/remove the two Edge Function versions and verify the existing Googl
 
 ## Explicitly not included
 
-Phone + PIN login, account recovery, activation verification, SMS, and medical-data access are separate gates. They must not be enabled by this Phase 1 rollout.
+Phone + password login, account recovery, activation verification, SMS, and medical-data access are separate gates. They must not be enabled by this Phase 1 rollout.
