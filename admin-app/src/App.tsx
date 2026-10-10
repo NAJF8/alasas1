@@ -4,6 +4,7 @@ import { Component, lazy, Suspense, type ErrorInfo, type ReactNode } from 'react
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedAdminRoute } from './components/auth/ProtectedRoute';
 import { Login } from './pages/Login';
+import { ManagerInvitePage } from './pages/ManagerInvitePage';
 const DashboardHome = lazy(() => import('./pages/DashboardHome').then((module) => ({ default: module.DashboardHome })));
 const ManagementPage = lazy(() => import('./pages/ManagementPage').then((module) => ({ default: module.ManagementPage })));
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then((module) => ({ default: module.SettingsPage })));
@@ -24,6 +25,7 @@ function App() {
       <HashRouter><Suspense fallback={<div className="min-h-screen grid place-items-center" dir="rtl">جارٍ تحميل الصفحة...</div>}>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/manager-invite" element={<ManagerInvitePage />} />
           
           <Route element={<ProtectedAdminRoute />}>
             <Route path="/" element={<DashboardHome />} />

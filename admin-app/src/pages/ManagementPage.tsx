@@ -67,13 +67,45 @@ const ProvincePage = () => {
 };
 
 const GenericManagementPage = ({ path }: { path: string }) => {
-  const config = configs[path] || configs['/users']; const [rows, setRows] = useState<Row[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null); const [query, setQuery] = useState(''); const [retry, setRetry] = useState(0); const { user } = useAuth();
-  useEffect(() => { let active = true; const load = async () => { setLoading(true); setError(null); const selected = Array.from(new Set(['id', ...config.columns.map((column) => column.key)])).join(','); let request = supabase.from(config.table).select(selected).limit(100); if (config.table !== 'audit_logs' && config.table !== 'notifications') request = request.order('created_at', { ascending: false }); if (config.filter === 'PATIENT' || config.filter === 'STUDENT') request = request.eq('role', config.filter); if (config.filter === 'ADMIN_ROLES') request = request.in('role', ['ADMIN', 'SUPER_ADMIN', 'STAFF']); const result = await request; if (!active) return; if (result.error) setError(result.error.message); else setRows((result.data || []) as unknown as Row[]); setLoading(false); }; void load(); return () => { active = false; }; }, [config, retry]);
+  const config = configs[path] || configs['/users'];
+  const [rows, setRows] = useState<Row[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [retry, setRetry] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      setLoading(true); setError(null); setMessage(null);
+      const selected = Array.from(new Set(['id', ...config.columns.map((column) => column.key)])).join(',');
+      let request = supabase.from(config.table).select(selected).limit(100);
+      if (config.table !== 'audit_logs' && config.table !== 'notifications') request = request.order('created_at', { ascending: false });
+      if (config.filter === 'PATIENT' || config.filter === 'STUDENT') request = request.eq('role', config.filter);
+      if (config.filter === 'ADMIN_ROLES') request = request.in('role', ['ADMIN', 'SUPER_ADMIN', 'STAFF']);
+      const result = await request;
+      if (!active) return;
+      if (result.error) setError(result.error.message); else setRows((result.data || []) as unknown as Row[]);
+      setLoading(false);
+    };
+    void load();
+    return () => { active = false; };
+  }, [config, retry]);
+
   const filtered = useMemo(() => rows.filter((row) => !query || Object.values(row).some((value) => display(value).toLocaleLowerCase().includes(query.toLocaleLowerCase()))), [rows, query]);
-  const updateStatus = async (row: Row) => { if (!user || !row.id) return; setError('لم يتم تنفيذ أي تغيير: مسار الموافقة يحتاج Migration وحقول السبب وصاحب القرار والتاريخ.'); };
-  const decisionBlocked = ['/students', '/cases', '/requests', '/matches'].includes(path); const canUpdate = false;
-  const csv = () => { const text = [config.columns.map((column) => column.label).join(','), ...filtered.map((row) => config.columns.map((column) => JSON.stringify(display(row[column.key]))).join(','))].join('\n'); void navigator.clipboard?.writeText(text); setError('تم نسخ البيانات إلى الحافظة بصيغة CSV.'); };
-  return <AdminLayout><div className="management-heading"><div><span className="dashboard-eyebrow">الإدارة والتشغيل</span><h1>{config.title}</h1><p>{config.description}</p></div></div>{decisionBlocked && <div className="admin-notice"><AlertCircle size={17} /><span><b>الموافقة متوقفة مؤقتاً</b><small>حفظ القرار والسبب وصاحب القرار وتاريخه يحتاج Phase 2 Migration غير مطبقة على Production. هذه الصفحة للقراءة فقط حالياً.</small></span></div>}<section className="admin-panel management-panel"><div className="management-toolbar"><div className="table-search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ابحث في النتائج..." /></div><button onClick={() => setRetry((value) => value + 1)}><RefreshCw size={15} /> تحديث</button><button onClick={() => setError('استخدم البحث لتصفية النتائج الحالية.')}><Filter size={16} /> تصفية</button><button onClick={csv}><Download size={16} /> تصدير</button></div>{loading ? <div className="empty-panel"><Loader2 className="animate-spin" /> جارٍ تحميل البيانات…</div> : error ? <div className="admin-error"><strong>تعذر تحميل هذا القسم</strong><span>{error}</span><button onClick={() => setRetry((value) => value + 1)}>إعادة المحاولة</button></div> : filtered.length === 0 ? <div className="empty-panel">لا توجد سجلات مطابقة حالياً.</div> : <div className="table-scroll"><table><thead><tr>{config.columns.map((column) => <th key={column.key}>{column.label}</th>)}<th>الإجراءات</th></tr></thead><tbody>{filtered.map((row, index) => <tr key={String(row.id || index)}>{config.columns.map((column) => <td key={column.key}>{display(row[column.key])}</td>)}<td>{canUpdate ? <button className="row-action" onClick={() => void updateStatus(row)}>تحديث الحالة</button> : <span className="text-slate-400">قراءة فقط</span>}</td></tr>)}</tbody></table></div>}<div className="table-footer"><span>عرض {filtered.length} نتيجة من البيانات الحقيقية</span><span>الحد الأقصى المعروض 100</span></div></section></AdminLayout>;
+  const decisionBlocked = ['/students', '/cases', '/requests', '/matches'].includes(path);
+  const csv = async () => {
+    const text = [config.columns.map((column) => column.label).join(','), ...filtered.map((row) => config.columns.map((column) => JSON.stringify(display(row[column.key]))).join(','))].join('\\n');
+    if (navigator.clipboard) await navigator.clipboard.writeText(text);
+    setMessage('تم نسخ البيانات إلى الحافظة بصيغة CSV.');
+  };
+  const clearSearch = () => { setQuery(''); setMessage('تم مسح البحث الحالي.'); };
+
+  return <AdminLayout><div className="management-heading"><div><span className="dashboard-eyebrow">الإدارة والتشغيل</span><h1>{config.title}</h1><p>{config.description}</p></div></div>
+    {decisionBlocked && <div className="admin-notice"><AlertCircle size={17} /><span><b>الموافقة متوقفة مؤقتاً</b><small>حفظ القرار والسبب وصاحب القرار وتاريخه يحتاج Phase 2 Migration غير مطبقة على Production. هذه الصفحة للقراءة فقط حالياً.</small></span></div>}
+    {message && <div className="settings-inline-success"><Check size={15} /> {message}</div>}
+    <section className="admin-panel management-panel"><div className="management-toolbar"><div className="table-search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ابحث في النتائج..." /></div><button onClick={() => setRetry((value) => value + 1)}><RefreshCw size={15} /> تحديث</button><button onClick={clearSearch} disabled={!query}><Filter size={16} /> مسح البحث</button><button onClick={() => void csv()}><Download size={16} /> تصدير</button></div>{loading ? <div className="empty-panel"><Loader2 className="animate-spin" /> جارٍ تحميل البيانات…</div> : error ? <div className="admin-error"><strong>تعذر تحميل هذا القسم</strong><span>{error}</span><button onClick={() => setRetry((value) => value + 1)}>إعادة المحاولة</button></div> : filtered.length === 0 ? <div className="empty-panel">لا توجد سجلات مطابقة حالياً.</div> : <div className="table-scroll"><table><thead><tr>{config.columns.map((column) => <th key={column.key}>{column.label}</th>)}<th>الإجراءات</th></tr></thead><tbody>{filtered.map((row, index) => <tr key={String(row.id || index)}>{config.columns.map((column) => <td key={column.key}>{display(row[column.key])}</td>)}<td><span className="text-slate-400">قراءة فقط</span></td></tr>)}</tbody></table></div>}<div className="table-footer"><span>عرض {filtered.length} نتيجة من البيانات الحقيقية</span><span>الحد الأقصى المعروض 100</span></div></section></AdminLayout>;
 };
 
 export const ManagementPage = ({ path }: { path: string }) => path === '/universities' ? <UniversityPage /> : path === '/provinces' ? <ProvincePage /> : <GenericManagementPage path={path} />;
