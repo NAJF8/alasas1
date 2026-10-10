@@ -1,9 +1,9 @@
 # ALASAS DENTAL — Full Functional Audit
 
-تاريخ الفحص: 2026-10-10  
-Repository: `NAJF8/alasas1`  
-Production: https://alasas.tech/  
-Admin: https://alasas.tech/admin/  
+تاريخ الفحص: 2026-10-10
+Repository: `NAJF8/alasas1`
+Production: https://alasas.tech/
+Admin: https://alasas.tech/admin/
 Supabase project: `nkzvxdobklsehdyzyzmy`
 
 ## حدود الفحص
@@ -29,7 +29,7 @@ Supabase project: `nkzvxdobklsehdyzyzmy`
 | RLS SECURITY | NOT FULLY VERIFIED | RLS مفعّل والسياسات مقروءة؛ لا يوجد اختبار adversarial بجلسات JWT اصطناعية |
 | RESPONSIVE | PARTIAL | فحص بصري في متصفح التطبيق؛ مصفوفة 375/390/768/1024/1366/1920 الكاملة غير منفذة |
 | BUILD | PASS | Customer وAdmin Build + TypeScript نجحا |
-| DEPLOY | NOT RUN | هذا التدقيق لم ينشر إصلاحات جديدة بعد |
+| DEPLOY | PASS | GitHub Actions workflow `38081145531` نجح في build/deploy |
 | LIVE VERIFICATION | PASS جزئي | المسارات العامة وRegistration وAdmin Login ظهرت على Production |
 
 لا يوجد `FULL PASS` لأن الاختبار المصادق عليه للـCRUD وOAuth وStorage وRLS غير متاح دون هويات اصطناعية مصرح بها وبيئة معزولة.
@@ -139,4 +139,4 @@ Supabase project: `nkzvxdobklsehdyzyzmy`
 
 ## قرار النشر
 
-لا يوجد نشر جديد ضمن هذه الجولة قبل اعتماد الإصلاحين الآمنين وإعادة اختبار صفحة Admin `/students`. يجب عدم نشر أي Backend أو Migration أو تغيير Auth/RLS/Storage كجزء من هذا التدقيق.
+تم نشر الإصلاحات الأمامية الآمنة فقط بعد نجاح Build: إزالة العمود غير الموجود من Admin `/students` وتحديث نص PIN القديم. Commit: `d3d6aeef4f3be549465cf6f2f896f86d5a7499a`. Workflow: `38081145531`. لم يُنشر أي Backend أو Migration ولم يتغير Auth/RLS/Storage.
