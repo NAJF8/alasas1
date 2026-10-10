@@ -38,12 +38,15 @@ Deno.serve(async (request) => {
     const password = String(body.password || '')
     const passwordConfirmation = String(body.password_confirmation || '')
     const provinceId = body.province_id ? String(body.province_id) : null
+    const areaId = body.area_id ? String(body.area_id) : null
+    const birthDate = body.birth_date ? String(body.birth_date) : null
     const universityId = body.university_id ? String(body.university_id) : null
     const stage = body.stage ? String(body.stage).trim() : null
     const weakPasswords = new Set(['password', 'password1', 'password123', 'qwerty', 'qwerty123', 'letmein', 'welcome', 'admin123', 'iloveyou', 'abc12345', '12345678', '123456789', '1234567890'])
     const loweredPassword = password.toLowerCase()
     const passwordIsWeak = password.length < 8 || password.length > 128 || weakPasswords.has(loweredPassword) || !/[A-Za-z]/.test(password) || !/[^A-Za-z]/.test(password) || /^([a-z0-9!@#$%^&*])\1+$/.test(loweredPassword)
-    if (fullName.length < 2 || fullName.length > 160 || !/^\+9647[0-9]{9}$/.test(phone) || !role || !gender || !provinceId || passwordIsWeak || password !== passwordConfirmation || (role === 'STUDENT' && (!universityId || !stage))) {
+    const validBirthDate = !birthDate || (/^\d{4}-\d{2}-\d{2}$/.test(birthDate) && !Number.isNaN(Date.parse(`${birthDate}T00:00:00Z`)) && birthDate <= new Date().toISOString().slice(0, 10))
+    if (fullName.length < 2 || fullName.length > 160 || !/^\+9647[0-9]{9}$/.test(phone) || !role || !gender || !provinceId || passwordIsWeak || password !== passwordConfirmation || (role === 'PATIENT' && (!areaId || !birthDate || !validBirthDate)) || (role === 'STUDENT' && (!universityId || !stage))) {
       return json({ error: 'بيانات التسجيل غير مكتملة أو غير صحيحة.' }, 400)
     }
     const url = Deno.env.get('SUPABASE_URL')!
@@ -51,6 +54,10 @@ Deno.serve(async (request) => {
     const adminClient = createClient(url, serviceKey)
     const { data: province } = await adminClient.from('provinces').select('id').eq('id', provinceId).eq('is_active', true).maybeSingle()
     if (!province) return json({ error: 'المحافظة غير متاحة للتسجيل حالياً.' }, 400)
+    if (role === 'PATIENT') {
+      const { data: area } = await adminClient.from('areas').select('id').eq('id', areaId).eq('province_id', provinceId).eq('is_active', true).maybeSingle()
+      if (!area) return json({ error: 'المنطقة غير متاحة مع المحافظة المختارة.' }, 400)
+    }
     if (role === 'STUDENT') {
       const { data: university } = await adminClient.from('universities').select('id,province_id').eq('id', universityId).eq('is_active', true).maybeSingle()
       if (!university || (university.province_id && university.province_id !== provinceId)) return json({ error: 'الجامعة غير متاحة مع المحافظة المختارة.' }, 400)
@@ -64,10 +71,12 @@ Deno.serve(async (request) => {
     const ipLimit = await adminClient.rpc('consume_registration_rate_limit', { p_rate_key: ipRateKey, p_limit: 20, p_window_seconds: 3600 })
     if (phoneLimit.error || ipLimit.error || phoneLimit.data !== true || ipLimit.data !== true) return json({ error: 'تم تجاوز عدد المحاولات. حاول لاحقاً.' }, 429)
     const passwordHash = await hashPassword(password)
-    const { data: row, error } = await adminClient.rpc('create_registration_request', { p_full_name: fullName, p_phone_e164: phone, p_role: role, p_gender: gender, p_province_id: provinceId, p_university_id: universityId, p_stage: stage, p_password_hash: passwordHash })
+    const { data: row, error } = await adminClient.rpc('create_registration_request', { p_full_name: fullName, p_phone_e164: phone, p_role: role, p_gender: gender, p_province_id: provinceId, p_area_id: areaId, p_birth_date: birthDate, p_university_id: universityId, p_stage: stage, p_password_hash: passwordHash })
     if (error || !row?.[0]) return json({ error: error?.code === '23505' ? 'يوجد طلب فعال لهذا الرقم.' : 'تعذر حفظ طلب التسجيل.' }, 400)
     const saved = row[0]
-    return json({ request_id: saved.id, status: saved.status, created_at: saved.created_at, message: 'تم إرسال طلب تسجيلك، يرجى انتظار موافقة الإدارة.' }, 201)
+    const { data: readback, error: readbackError } = await adminClient.from('registration_requests').select('id,status,full_name,phone_e164,role,gender,province_id,area_id,birth_date,university_id,stage,created_at').eq('id', saved.id).eq('status', 'PENDING').single()
+    if (readbackError || !readback || readback.status !== 'PENDING') return json({ error: 'تمت الكتابة دون Readback مؤكد.' }, 503)
+    return json({ request_id: readback.id, status: readback.status, created_at: readback.created_at, message: 'تم إرسال طلب تسجيلك، يرجى انتظار موافقة الإدارة.' }, 201)
   } catch (error) {
     console.error('registration-request', error)
     return json({ error: 'تعذر إكمال طلب التسجيل.' }, 500)

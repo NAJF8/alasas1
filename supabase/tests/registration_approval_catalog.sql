@@ -20,8 +20,8 @@ begin
     end if;
   end loop;
 
-  if has_function_privilege('anon', 'public.create_registration_request(text,text,text,text,uuid,uuid,text,text)', 'EXECUTE')
-     or has_function_privilege('authenticated', 'public.create_registration_request(text,text,text,text,uuid,uuid,text,text)', 'EXECUTE') then
+  if has_function_privilege('anon', 'public.create_registration_request(text,text,text,text,uuid,uuid,date,uuid,text,text)', 'EXECUTE')
+     or has_function_privilege('authenticated', 'public.create_registration_request(text,text,text,text,uuid,uuid,date,uuid,text,text)', 'EXECUTE') then
     raise exception 'anonymous execution is granted for create_registration_request';
   end if;
   if has_function_privilege('anon', 'public.review_registration_request(uuid,text,uuid,text)', 'EXECUTE')
@@ -30,6 +30,15 @@ begin
   end if;
   if not exists (select 1 from pg_indexes where schemaname='public' and indexname='registration_requests_active_phone_uidx') then
     raise exception 'active phone uniqueness index is missing';
+  end if;
+  if not exists (select 1 from information_schema.columns where table_schema='public' and table_name='registration_requests' and column_name='area_id')
+     or not exists (select 1 from information_schema.columns where table_schema='public' and table_name='registration_requests' and column_name='birth_date') then
+    raise exception 'patient registration fields are missing';
+  end if;
+  if not has_function_privilege('service_role', 'public.create_registration_request(text,text,text,text,uuid,uuid,date,uuid,text,text)', 'EXECUTE')
+     or not has_function_privilege('service_role', 'public.review_registration_request(uuid,text,uuid,text)', 'EXECUTE')
+     or not has_function_privilege('service_role', 'public.consume_registration_rate_limit(text,integer,integer)', 'EXECUTE') then
+    raise exception 'service_role execution grants are incomplete';
   end if;
 end $$;
 

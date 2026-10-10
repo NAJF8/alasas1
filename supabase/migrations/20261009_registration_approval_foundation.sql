@@ -11,6 +11,8 @@ create table if not exists public.registration_requests (
   role text not null check (role in ('PATIENT', 'STUDENT')),
   gender text not null check (gender in ('MALE', 'FEMALE')),
   province_id uuid not null references public.provinces(id),
+  area_id uuid references public.areas(id),
+  birth_date date,
   university_id uuid references public.universities(id),
   stage text,
   password_hash text not null,
@@ -20,6 +22,8 @@ create table if not exists public.registration_requests (
   reviewed_by uuid references auth.users(id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
+  constraint registration_patient_area check (role <> 'PATIENT' or area_id is not null),
+  constraint registration_patient_birth_date check (role <> 'PATIENT' or birth_date is not null),
   constraint registration_student_university check (role <> 'STUDENT' or university_id is not null),
   constraint registration_student_stage check (role <> 'STUDENT' or nullif(btrim(stage), '') is not null)
 );
@@ -112,6 +116,8 @@ create or replace function public.create_registration_request(
   p_role text,
   p_gender text,
   p_province_id uuid,
+  p_area_id uuid,
+  p_birth_date date,
   p_university_id uuid,
   p_stage text,
   p_password_hash text
@@ -121,8 +127,8 @@ security invoker
 set search_path = pg_catalog, public
 as $$
 begin
-  insert into public.registration_requests(full_name, phone_e164, role, gender, province_id, university_id, stage, password_hash)
-  values (p_full_name, p_phone_e164, p_role, p_gender, p_province_id, p_university_id, p_stage, p_password_hash)
+  insert into public.registration_requests(full_name, phone_e164, role, gender, province_id, area_id, birth_date, university_id, stage, password_hash)
+  values (p_full_name, p_phone_e164, p_role, p_gender, p_province_id, p_area_id, p_birth_date, p_university_id, p_stage, p_password_hash)
   returning registration_requests.id, registration_requests.status, registration_requests.created_at
   into id, status, created_at;
 
@@ -149,6 +155,15 @@ begin
     raise exception 'invalid registration decision';
   end if;
 
+  if not exists (
+    select 1 from public.profiles
+    where id = p_actor_id
+      and role in ('ADMIN'::public.user_role, 'SUPER_ADMIN'::public.user_role)
+      and status = 'VERIFIED'::public.account_status
+  ) then
+    raise exception 'registration decision actor is not a verified admin';
+  end if;
+
   update public.registration_requests r
     set status = p_next_status,
         rejection_reason = case when p_next_status = 'REJECTED' then p_rejection_reason else null end,
@@ -169,7 +184,7 @@ begin
 end;
 $$;
 
-revoke all on function public.create_registration_request(text, text, text, text, uuid, uuid, text, text) from public, anon, authenticated;
+revoke all on function public.create_registration_request(text, text, text, text, uuid, uuid, date, uuid, text, text) from public, anon, authenticated;
 revoke all on function public.review_registration_request(uuid, text, uuid, text) from public, anon, authenticated;
-grant execute on function public.create_registration_request(text, text, text, text, uuid, uuid, text, text) to service_role;
+grant execute on function public.create_registration_request(text, text, text, text, uuid, uuid, date, uuid, text, text) to service_role;
 grant execute on function public.review_registration_request(uuid, text, uuid, text) to service_role;
