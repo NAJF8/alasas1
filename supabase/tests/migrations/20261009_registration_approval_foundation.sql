@@ -156,10 +156,10 @@ begin
   end if;
 
   if not exists (
-    select 1 from public.profiles
-    where id = p_actor_id
-      and role in ('ADMIN'::public.user_role, 'SUPER_ADMIN'::public.user_role)
-      and status = 'VERIFIED'::public.account_status
+    select 1 from public.profiles p
+    where p.id = p_actor_id
+      and p.role in ('ADMIN'::public.user_role, 'SUPER_ADMIN'::public.user_role)
+      and p.status = 'VERIFIED'::public.account_status
   ) then
     raise exception 'registration decision actor is not a verified admin';
   end if;

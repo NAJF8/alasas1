@@ -74,11 +74,15 @@ const GenericManagementPage = ({ path }: { path: string }) => {
     const load = async () => {
       setLoading(true); setError(null); setMessage(null);
       const selected = Array.from(new Set(['id', ...config.columns.map((column) => column.key)])).join(',');
-      let request = supabase.from(config.table).select(selected).limit(100);
-      if (config.table !== 'audit_logs' && config.table !== 'notifications') request = request.order('created_at', { ascending: false });
-      if (config.filter === 'PATIENT' || config.filter === 'STUDENT') request = request.eq('role', config.filter);
-      if (config.filter === 'ADMIN_ROLES') request = request.in('role', ['ADMIN', 'SUPER_ADMIN', 'STAFF']);
-      const result = await request;
+      const result = config.table === 'profiles'
+        ? await supabase.rpc('list_profiles_for_admin')
+        : await (() => {
+          let request = supabase.from(config.table).select(selected).limit(100);
+          if (config.table !== 'audit_logs' && config.table !== 'notifications') request = request.order('created_at', { ascending: false });
+          if (config.filter === 'PATIENT' || config.filter === 'STUDENT') request = request.eq('role', config.filter);
+          if (config.filter === 'ADMIN_ROLES') request = request.in('role', ['ADMIN', 'SUPER_ADMIN', 'STAFF']);
+          return request;
+        })();
       if (!active) return;
       if (result.error) setError(result.error.message); else setRows((result.data || []) as unknown as Row[]);
       setLoading(false);
@@ -87,7 +91,14 @@ const GenericManagementPage = ({ path }: { path: string }) => {
     return () => { active = false; };
   }, [config, retry]);
 
-  const filtered = useMemo(() => rows.filter((row) => !query || Object.values(row).some((value) => displayValue(value).toLocaleLowerCase().includes(query.toLocaleLowerCase()))), [rows, query]);
+  const filtered = useMemo(() => rows.filter((row) => {
+    const roleMatches = config.filter === 'PATIENT' || config.filter === 'STUDENT'
+      ? row.role === config.filter
+      : config.filter === 'ADMIN_ROLES'
+        ? ['ADMIN', 'SUPER_ADMIN', 'STAFF'].includes(String(row.role))
+        : true;
+    return roleMatches && (!query || Object.values(row).some((value) => displayValue(value).toLocaleLowerCase().includes(query.toLocaleLowerCase())));
+  }), [rows, query, config]);
   const decisionBlocked = ['/students', '/cases', '/requests', '/matches'].includes(path);
   const csv = async () => {
     const text = [config.columns.map((column) => column.label).join(','), ...filtered.map((row) => config.columns.map((column) => JSON.stringify(displayValue(row[column.key], column.key))).join(','))].join('\\n');

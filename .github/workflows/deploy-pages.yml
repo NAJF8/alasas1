@@ -20,6 +20,9 @@ jobs:
     env:
       VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      # Keep the registration backend dark until Production canaries pass.
+      # An absent secret also resolves to false rather than enabling the flow.
+      VITE_REGISTRATION_BACKEND_ENABLED: ${{ secrets.VITE_REGISTRATION_BACKEND_ENABLED || 'false' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
