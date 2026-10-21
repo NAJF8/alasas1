@@ -41,8 +41,9 @@ The remaining 15 public tables currently contain zero rows. Source Auth contains
 
 ## Rules and application state
 
-- `firestore.rules` was added with default-deny behavior, verified-admin gates, owner checks, and no direct client access to matching, appointment, payment, or audit writes.
-- The rules were deployed to Firebase Staging only with `firebase deploy --only firestore:rules --project al-asas-dental-staging`; the CLI returned success.
+- `firestore.rules` is now hardened at commit `de3d8e5`: STAFF is no longer treated as an administrator; only verified Super Admins can manage roles, manager invitations, and permission documents; client profile creation is restricted to pending PATIENT/STUDENT records; client updates preserve ownership, role, status, and administrative fields; clients cannot approve, match, or write audit records; students cannot directly read medical case-image documents.
+- The hardened rules passed an authenticated Firestore Emulator matrix covering self-verification, role escalation, STAFF permission writes, student medical-case reads, patient self-approval, student match writes, patient-owned reads, and Super Admin role management.
+- The hardened rules were deployed to Firebase Staging only with `firebase deploy --only firestore:rules --project al-asas-dental-staging`; the CLI returned `status: success`.
 - Baseline Customer and Admin builds pass on this branch. They still import `@supabase/supabase-js`; therefore a build is not evidence of Firebase application E2E.
 - Firebase Hosting sites exist for Customer (`al-asas-dental-staging.web.app`) and Admin (`al-asas-dental-admin.web.app`). No hosting deployment was performed in this turn because the built applications are still Supabase-backed.
 
@@ -54,14 +55,14 @@ The remaining 15 public tables currently contain zero rows. Source Auth contains
 | FIREBASE_PROJECT_VERIFIED | PASS | Direct CLI project list, Google identity, Firestore database metadata, web app list, and live document/Auth counts. |
 | FIRESTORE_MIGRATION | PASS (existing state verified) | Counts and ordered ID hashes match the source mapping; no destructive replacement was needed. Full field-by-field content hash is not claimed until a protected canonical export comparison is completed. |
 | AUTH_MIGRATION | PASS (identity linkage) | 4 Firebase users, 4 profiles, matching UID/profile hash. Password material was not exported or displayed. |
-| SECURITY_RULES | PASS (deployment; E2E partial) | Rules deployed to Staging and parse-accepted. Authenticated negative/positive matrices remain NOT_VERIFIED because no approved test identities/session harness was used in this turn. |
+| SECURITY_RULES | PASS (Emulator + deployment) | Hardened rules passed the local authenticated Emulator matrix and deployed successfully to Staging. Full live multi-role E2E remains open. |
 | CUSTOMER_FIREBASE | BLOCKED | Customer code still uses Supabase SDK and Supabase Auth/Storage/RPC. |
 | ADMIN_FIREBASE | BLOCKED | Admin code still uses Supabase SDK, RPCs, Edge Functions, and Supabase Auth. |
 | REGISTRATION_E2E | BLOCKED | Requires a deployed Firebase backend function/API and approved test identities; no fake client-only flow was introduced. |
 | PATIENT_CASE_E2E | BLOCKED | Requires Firebase Auth + private image backend/storage path and rules-tested read/write flow. |
 | STUDENT_MATCHING_E2E | BLOCKED | Requires backend matching logic and anonymized query endpoint; direct Firestore access is intentionally denied. |
 | ADMIN_APPROVAL_E2E | BLOCKED | Requires server-side invitation/approval operations and audit writes; Firestore rules deny client audit writes. |
-| STAGING_DEPLOY | NOT_VERIFIED | Hosting deploy intentionally withheld while the apps are Supabase-backed. |
+| STAGING_DEPLOY | PARTIAL | Firestore rules deployed successfully; Customer/Admin Hosting deployment intentionally withheld while both apps remain operationally Supabase-backed. |
 | PRODUCTION_UNCHANGED | PASS | No Supabase Production write, migration, Auth change, Storage change, or deployment command was executed. |
 
 ## Why earlier reports said 59/4 and the latest check said 0/0
