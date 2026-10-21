@@ -4,6 +4,6 @@ import { defineConfig } from 'vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // The admin app is copied into the /admin/ Pages subdirectory.
-  base: '/admin/',
+  // Admin is deployed to its own Firebase Hosting site.
+  base: '/',
 })

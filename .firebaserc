@@ -1,0 +1,13 @@
+{
+  "projects": {
+    "default": "al-asas-dental-staging"
+  },
+  "targets": {
+    "al-asas-dental-staging": {
+      "hosting": {
+        "customer": ["al-asas-dental-staging"],
+        "admin": ["al-asas-dental-admin"]
+      }
+    }
+  }
+}
