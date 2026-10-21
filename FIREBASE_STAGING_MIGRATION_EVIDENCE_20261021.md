@@ -12,7 +12,7 @@ This file records live, read-only source verification and Firebase Staging verif
 
 ## Direct source readback
 
-Supabase connector readback confirmed an active/healthy PostgreSQL 17 project with 26 public tables, all with RLS enabled. The current row total is 57:
+Supabase connector readback confirmed an active/healthy PostgreSQL 17 project with 26 public tables, all with RLS enabled. The current row total is 59:
 
 | Non-empty table | Rows |
 | --- | ---: |
