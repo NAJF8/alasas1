@@ -1,0 +1,180 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function profile(uid) {
+      return get(/databases/$(database)/documents/profiles/$(uid));
+    }
+
+    function verifiedAdmin() {
+      return signedIn()
+        && profile(request.auth.uid).data.status == 'VERIFIED'
+        && profile(request.auth.uid).data.role in ['ADMIN', 'SUPER_ADMIN', 'STAFF'];
+    }
+
+    function owns(field) {
+      return signedIn() && resource.data[field] == request.auth.uid;
+    }
+
+    function ownsIncoming(field) {
+      return signedIn() && request.resource.data[field] == request.auth.uid;
+    }
+
+    // Public/reference content contains no patient or account data.
+    match /provinces/{id} {
+      allow read: if true;
+      allow write: if verifiedAdmin();
+    }
+
+    match /areas/{id} {
+      allow read: if true;
+      allow write: if verifiedAdmin();
+    }
+
+    match /universities/{id} {
+      allow read: if true;
+      allow write: if verifiedAdmin();
+    }
+
+    match /clinical_categories/{id} {
+      allow read: if true;
+      allow write: if verifiedAdmin();
+    }
+
+    match /branding_settings/{id} {
+      allow read: if true;
+      allow write: if verifiedAdmin();
+    }
+
+    match /content_settings/{id} {
+      allow read: if true;
+      allow write: if verifiedAdmin();
+    }
+
+    match /subscription_plans/{id} {
+      allow read: if true;
+      allow write: if verifiedAdmin();
+    }
+
+    match /profiles/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || verifiedAdmin());
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.id == uid
+        && request.resource.data.role in ['PATIENT', 'STUDENT']
+        && request.resource.data.status in ['PENDING', 'VERIFIED'];
+      allow update: if verifiedAdmin()
+        || (signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.status == resource.data.status);
+      allow delete: if verifiedAdmin();
+    }
+
+    match /patient_preferred_universities/{id} {
+      allow read, delete: if verifiedAdmin() || owns('patient_id');
+      allow create: if verifiedAdmin() || ownsIncoming('patient_id');
+      allow update: if verifiedAdmin() || owns('patient_id') && ownsIncoming('patient_id');
+    }
+
+    match /student_preferred_universities/{id} {
+      allow read, delete: if verifiedAdmin() || owns('student_id');
+      allow create: if verifiedAdmin() || ownsIncoming('student_id');
+      allow update: if verifiedAdmin() || owns('student_id') && ownsIncoming('student_id');
+    }
+
+    match /patient_cases/{id} {
+      allow read: if verifiedAdmin() || owns('patient_id');
+      allow create: if verifiedAdmin() || ownsIncoming('patient_id');
+      allow update: if verifiedAdmin() || owns('patient_id') && ownsIncoming('patient_id');
+      allow delete: if verifiedAdmin() || owns('patient_id');
+    }
+
+    match /case_images/{id} {
+      allow read: if verifiedAdmin()
+        || (signedIn() && get(/databases/$(database)/documents/patient_cases/$(resource.data.case_id)).data.patient_id == request.auth.uid);
+      allow create: if verifiedAdmin()
+        || (signedIn() && get(/databases/$(database)/documents/patient_cases/$(request.resource.data.case_id)).data.patient_id == request.auth.uid);
+      allow update, delete: if verifiedAdmin();
+    }
+
+    match /student_requests/{id} {
+      allow read: if verifiedAdmin() || owns('student_id');
+      allow create: if verifiedAdmin() || ownsIncoming('student_id');
+      allow update: if verifiedAdmin() || owns('student_id') && ownsIncoming('student_id');
+      allow delete: if verifiedAdmin() || owns('student_id');
+    }
+
+    match /student_request_preferred_universities/{id} {
+      allow read, delete: if verifiedAdmin()
+        || (signedIn() && get(/databases/$(database)/documents/student_requests/$(resource.data.request_id)).data.student_id == request.auth.uid);
+      allow create: if verifiedAdmin()
+        || (signedIn() && get(/databases/$(database)/documents/student_requests/$(request.resource.data.request_id)).data.student_id == request.auth.uid);
+      allow update: if verifiedAdmin();
+    }
+
+    // Matching, appointments, notifications, payments and audit data are never
+    // directly queryable by clients. A reviewed backend must mediate these flows.
+    match /matches/{id} {
+      allow read, write: if verifiedAdmin();
+    }
+
+    match /appointments/{id} {
+      allow read, write: if verifiedAdmin();
+    }
+
+    match /notifications/{id} {
+      allow read: if verifiedAdmin() || owns('user_id');
+      allow update: if verifiedAdmin() || owns('user_id') && ownsIncoming('user_id');
+      allow create, delete: if verifiedAdmin();
+    }
+
+    match /support_tickets/{id} {
+      allow read, update: if verifiedAdmin() || owns('user_id');
+      allow create: if verifiedAdmin() || ownsIncoming('user_id');
+      allow delete: if verifiedAdmin();
+    }
+
+    match /subscriptions/{id} {
+      allow read: if verifiedAdmin() || owns('user_id');
+      allow write: if verifiedAdmin();
+    }
+
+    match /payments/{id} {
+      allow read: if verifiedAdmin() || owns('user_id');
+      allow write: if verifiedAdmin();
+    }
+
+    match /system_settings/{id} {
+      allow read: if verifiedAdmin();
+      allow write: if verifiedAdmin();
+    }
+
+    match /matching_settings/{id} {
+      allow read: if verifiedAdmin();
+      allow write: if verifiedAdmin();
+    }
+
+    match /whatsapp_logs/{id} {
+      allow read, write: if verifiedAdmin();
+    }
+
+    match /audit_logs/{id} {
+      allow read: if verifiedAdmin();
+      allow write: if false;
+    }
+
+    match /admin_permissions/{id} {
+      allow read, write: if verifiedAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
