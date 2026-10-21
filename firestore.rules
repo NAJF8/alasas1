@@ -118,7 +118,7 @@ service cloud.firestore {
       allow read: if manager() || owner('patient_id');
       allow create: if manager()
         || (incomingOwner('patient_id') && request.resource.data.status == 'PENDING');
-      allow update: if manager()
+      allow update: if (manager() && request.resource.data.status == resource.data.status)
         || (owner('patient_id')
           && incomingOwner('patient_id')
           && request.resource.data.status == resource.data.status
@@ -146,7 +146,7 @@ service cloud.firestore {
       allow read: if manager() || owner('student_id');
       allow create: if manager()
         || (incomingOwner('student_id') && request.resource.data.status == 'PENDING');
-      allow update: if manager()
+      allow update: if (manager() && request.resource.data.status == resource.data.status)
         || (owner('student_id')
           && incomingOwner('student_id')
           && request.resource.data.status == resource.data.status
@@ -170,11 +170,13 @@ service cloud.firestore {
     // Approval, matching, appointments, and audit records are backend/admin
     // surfaces. Clients cannot change status, approve, match, or audit.
     match /matches/{id} {
-      allow read, write: if manager();
+      allow read: if manager();
+      allow write: if false;
     }
 
     match /appointments/{id} {
-      allow read, write: if manager();
+      allow read: if manager();
+      allow write: if false;
     }
 
     match /notifications/{id} {
