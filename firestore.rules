@@ -10,167 +10,228 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/profiles/$(uid));
     }
 
-    function verifiedAdmin() {
+    function verifiedRole(role) {
       return signedIn()
         && profile(request.auth.uid).data.status == 'VERIFIED'
-        && profile(request.auth.uid).data.role in ['ADMIN', 'SUPER_ADMIN', 'STAFF'];
+        && profile(request.auth.uid).data.role == role;
     }
 
-    function owns(field) {
+    function superAdmin() {
+      return verifiedRole('SUPER_ADMIN');
+    }
+
+    function manager() {
+      return verifiedRole('SUPER_ADMIN') || verifiedRole('ADMIN');
+    }
+
+    function owner(field) {
       return signedIn() && resource.data[field] == request.auth.uid;
     }
 
-    function ownsIncoming(field) {
+    function incomingOwner(field) {
       return signedIn() && request.resource.data[field] == request.auth.uid;
     }
 
-    // Public/reference content contains no patient or account data.
     match /provinces/{id} {
       allow read: if true;
-      allow write: if verifiedAdmin();
+      allow write: if manager();
     }
 
     match /areas/{id} {
       allow read: if true;
-      allow write: if verifiedAdmin();
+      allow write: if manager();
     }
 
     match /universities/{id} {
       allow read: if true;
-      allow write: if verifiedAdmin();
+      allow write: if manager();
     }
 
     match /clinical_categories/{id} {
       allow read: if true;
-      allow write: if verifiedAdmin();
+      allow write: if manager();
     }
 
     match /branding_settings/{id} {
       allow read: if true;
-      allow write: if verifiedAdmin();
+      allow write: if manager();
     }
 
     match /content_settings/{id} {
       allow read: if true;
-      allow write: if verifiedAdmin();
+      allow write: if manager();
     }
 
     match /subscription_plans/{id} {
       allow read: if true;
-      allow write: if verifiedAdmin();
+      allow write: if manager();
     }
 
+    // Client profiles are pending at creation. Role/status/ownership and all
+    // administrative fields require a trusted backend or Super Admin.
     match /profiles/{uid} {
-      allow read: if signedIn() && (request.auth.uid == uid || verifiedAdmin());
+      allow read: if signedIn() && (request.auth.uid == uid || manager());
       allow create: if signedIn()
         && request.auth.uid == uid
         && request.resource.data.id == uid
         && request.resource.data.role in ['PATIENT', 'STUDENT']
-        && request.resource.data.status in ['PENDING', 'VERIFIED'];
-      allow update: if verifiedAdmin()
+        && request.resource.data.status == 'PENDING'
+        && request.resource.data.diff({}).affectedKeys().hasOnly([
+          'id', 'role', 'status', 'full_name', 'phone', 'whatsapp', 'gender',
+          'birth_date', 'province_id', 'area_id', 'university_id', 'stage',
+          'workplace', 'created_at', 'updated_at'
+        ]);
+      allow update: if superAdmin()
         || (signedIn()
           && request.auth.uid == uid
           && request.resource.data.id == resource.data.id
           && request.resource.data.role == resource.data.role
-          && request.resource.data.status == resource.data.status);
-      allow delete: if verifiedAdmin();
+          && request.resource.data.status == resource.data.status
+          && request.resource.data.created_at == resource.data.created_at
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'full_name', 'phone', 'whatsapp', 'gender', 'birth_date',
+            'province_id', 'area_id', 'university_id', 'stage', 'workplace',
+            'updated_at'
+          ]));
+      allow delete: if superAdmin();
     }
 
     match /patient_preferred_universities/{id} {
-      allow read, delete: if verifiedAdmin() || owns('patient_id');
-      allow create: if verifiedAdmin() || ownsIncoming('patient_id');
-      allow update: if verifiedAdmin() || owns('patient_id') && ownsIncoming('patient_id');
+      allow read, delete: if manager() || owner('patient_id');
+      allow create: if manager() || incomingOwner('patient_id');
+      allow update: if manager()
+        || (owner('patient_id')
+          && incomingOwner('patient_id')
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['university_id']));
     }
 
     match /student_preferred_universities/{id} {
-      allow read, delete: if verifiedAdmin() || owns('student_id');
-      allow create: if verifiedAdmin() || ownsIncoming('student_id');
-      allow update: if verifiedAdmin() || owns('student_id') && ownsIncoming('student_id');
+      allow read, delete: if manager() || owner('student_id');
+      allow create: if manager() || incomingOwner('student_id');
+      allow update: if manager()
+        || (owner('student_id')
+          && incomingOwner('student_id')
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['university_id']));
     }
 
     match /patient_cases/{id} {
-      allow read: if verifiedAdmin() || owns('patient_id');
-      allow create: if verifiedAdmin() || ownsIncoming('patient_id');
-      allow update: if verifiedAdmin() || owns('patient_id') && ownsIncoming('patient_id');
-      allow delete: if verifiedAdmin() || owns('patient_id');
+      allow read: if manager() || owner('patient_id');
+      allow create: if manager()
+        || (incomingOwner('patient_id') && request.resource.data.status == 'PENDING');
+      allow update: if manager()
+        || (owner('patient_id')
+          && incomingOwner('patient_id')
+          && request.resource.data.status == resource.data.status
+          && request.resource.data.case_number == resource.data.case_number
+          && request.resource.data.created_at == resource.data.created_at
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'province_id', 'area_id', 'patient_age', 'patient_gender',
+            'description', 'symptoms', 'available_days', 'preferred_periods',
+            'updated_at'
+          ]));
+      allow delete: if manager();
     }
 
+    // Students never read medical image documents directly. A trusted backend
+    // issues a short-lived private R2 URL only after approval/matching.
     match /case_images/{id} {
-      allow read: if verifiedAdmin()
+      allow read: if manager()
         || (signedIn() && get(/databases/$(database)/documents/patient_cases/$(resource.data.case_id)).data.patient_id == request.auth.uid);
-      allow create: if verifiedAdmin()
+      allow create: if manager()
         || (signedIn() && get(/databases/$(database)/documents/patient_cases/$(request.resource.data.case_id)).data.patient_id == request.auth.uid);
-      allow update, delete: if verifiedAdmin();
+      allow update, delete: if manager();
     }
 
     match /student_requests/{id} {
-      allow read: if verifiedAdmin() || owns('student_id');
-      allow create: if verifiedAdmin() || ownsIncoming('student_id');
-      allow update: if verifiedAdmin() || owns('student_id') && ownsIncoming('student_id');
-      allow delete: if verifiedAdmin() || owns('student_id');
+      allow read: if manager() || owner('student_id');
+      allow create: if manager()
+        || (incomingOwner('student_id') && request.resource.data.status == 'PENDING');
+      allow update: if manager()
+        || (owner('student_id')
+          && incomingOwner('student_id')
+          && request.resource.data.status == resource.data.status
+          && request.resource.data.request_number == resource.data.request_number
+          && request.resource.data.created_at == resource.data.created_at
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'province_id', 'clinical_category_id', 'tooth_area', 'available_days',
+            'notes', 'updated_at'
+          ]));
+      allow delete: if manager();
     }
 
     match /student_request_preferred_universities/{id} {
-      allow read, delete: if verifiedAdmin()
+      allow read, delete: if manager()
         || (signedIn() && get(/databases/$(database)/documents/student_requests/$(resource.data.request_id)).data.student_id == request.auth.uid);
-      allow create: if verifiedAdmin()
+      allow create: if manager()
         || (signedIn() && get(/databases/$(database)/documents/student_requests/$(request.resource.data.request_id)).data.student_id == request.auth.uid);
-      allow update: if verifiedAdmin();
+      allow update: if manager();
     }
 
-    // Matching, appointments, notifications, payments and audit data are never
-    // directly queryable by clients. A reviewed backend must mediate these flows.
+    // Approval, matching, appointments, and audit records are backend/admin
+    // surfaces. Clients cannot change status, approve, match, or audit.
     match /matches/{id} {
-      allow read, write: if verifiedAdmin();
+      allow read, write: if manager();
     }
 
     match /appointments/{id} {
-      allow read, write: if verifiedAdmin();
+      allow read, write: if manager();
     }
 
     match /notifications/{id} {
-      allow read: if verifiedAdmin() || owns('user_id');
-      allow update: if verifiedAdmin() || owns('user_id') && ownsIncoming('user_id');
-      allow create, delete: if verifiedAdmin();
+      allow read: if manager() || owner('user_id');
+      allow update: if manager()
+        || (owner('user_id')
+          && incomingOwner('user_id')
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_read', 'read_at']));
+      allow create, delete: if manager();
     }
 
     match /support_tickets/{id} {
-      allow read, update: if verifiedAdmin() || owns('user_id');
-      allow create: if verifiedAdmin() || ownsIncoming('user_id');
-      allow delete: if verifiedAdmin();
+      allow read: if manager() || owner('user_id');
+      allow create: if manager() || incomingOwner('user_id');
+      allow update: if manager() || (owner('user_id') && incomingOwner('user_id'));
+      allow delete: if manager();
     }
 
     match /subscriptions/{id} {
-      allow read: if verifiedAdmin() || owns('user_id');
-      allow write: if verifiedAdmin();
+      allow read: if manager() || owner('user_id');
+      allow write: if manager();
     }
 
     match /payments/{id} {
-      allow read: if verifiedAdmin() || owns('user_id');
-      allow write: if verifiedAdmin();
+      allow read: if manager() || owner('user_id');
+      allow write: if manager();
     }
 
     match /system_settings/{id} {
-      allow read: if verifiedAdmin();
-      allow write: if verifiedAdmin();
+      allow read, write: if manager();
     }
 
     match /matching_settings/{id} {
-      allow read: if verifiedAdmin();
-      allow write: if verifiedAdmin();
+      allow read, write: if manager();
     }
 
     match /whatsapp_logs/{id} {
-      allow read, write: if verifiedAdmin();
+      allow read, write: if manager();
     }
 
     match /audit_logs/{id} {
-      allow read: if verifiedAdmin();
+      allow read: if manager();
       allow write: if false;
     }
 
+    // Only verified Super Admin may manage roles, manager records, or
+    // permission documents. STAFF and ADMIN cannot self-escalate.
     match /admin_permissions/{id} {
-      allow read, write: if verifiedAdmin();
+      allow read, write: if superAdmin();
+    }
+
+    match /manager_invitations/{id} {
+      allow read, write: if superAdmin();
+    }
+
+    match /registration_requests/{id} {
+      allow read, write: if superAdmin();
     }
 
     match /{document=**} {
