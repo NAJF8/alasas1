@@ -2,6 +2,7 @@ import { AlertCircle, Camera, CheckCircle, ChevronLeft, ChevronRight, Loader2, U
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { callBackend } from '../../lib/firebaseData';
 import { supabase } from '../../lib/supabase';
 import { getActiveProvinces, getActiveUniversities } from '../../lib/referenceData';
 
@@ -37,8 +38,10 @@ export const PatientCaseWizard = () => {
     setSaving(true);
     setError(null);
     setCleanupFailures([]);
-    const { data: createdCase, error: caseError } = await supabase.from('patient_cases').insert({
-      patient_id: user.id,
+    let createdCase: { id: string; case_number: string } | null = null;
+    let caseError: { message: string } | null = null;
+    try {
+      const result = await callBackend<{ data: { id: string; case_number: string } }>('/api/create_patient_case', {
       province_id: formData.province_id,
       area_id: formData.area_id,
       patient_age: Number(formData.patient_age),
@@ -47,7 +50,9 @@ export const PatientCaseWizard = () => {
       symptoms: formData.symptoms,
       available_days: formData.available_days,
       preferred_periods: formData.preferred_periods,
-    }).select('id, case_number').single();
+      });
+      createdCase = result.data;
+    } catch (error) { caseError = { message: error instanceof Error ? error.message : String(error) }; }
     if (caseError || !createdCase) { setError(caseError?.message || 'تعذر إنشاء الحالة.'); submissionInFlight.current = false; setSaving(false); return; }
 
     const uploadedPaths: string[] = [];
@@ -108,18 +113,19 @@ export const PatientCaseWizard = () => {
     for (const file of formData.images) {
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const path = `${user.id}/${createdCase.id}/${crypto.randomUUID()}-${safeName}`;
-      const { error: uploadError } = await supabase.storage.from('patient-case-images').upload(path, file, { upsert: false, contentType: file.type });
-      if (uploadError) { await failDraft(`تعذر رفع ${file.name}: ${uploadError.message}`); return; }
-      uploadedPaths.push(path);
+      const uploadResult = await supabase.storage.from('patient-case-images').upload(path, file, { upsert: false, contentType: file.type });
+      if (uploadResult.error) { await failDraft(`تعذر رفع ${file.name}: ${uploadResult.error.message}`); return; }
+      const actualPath = String(uploadResult.data?.path || path);
+      uploadedPaths.push(actualPath);
 
       // A successful upload response alone is not enough: read the private object
       // back through the authenticated Storage policy before recording it.
-      const { data: downloaded, error: downloadError } = await supabase.storage.from('patient-case-images').download(path);
+      const { data: downloaded, error: downloadError } = await supabase.storage.from('patient-case-images').download(actualPath);
       if (downloadError || !downloaded || downloaded.size !== file.size) { await failDraft(`تم رفع ${file.name} لكن Readback من Storage لم يطابق الملف.`); return; }
-      const { data: imageRow, error: imageRowError } = await supabase.from('case_images').insert({ case_id: createdCase.id, image_url: path, storage_path: path, image_type: file.type === 'application/pdf' ? 'xray' : 'photo', is_approved_for_student_view: false }).select('id, case_id, storage_path').single();
+      const { data: imageRow, error: imageRowError } = await supabase.from('case_images').insert({ case_id: createdCase.id, image_url: actualPath, storage_path: actualPath, image_type: file.type === 'application/pdf' ? 'xray' : 'photo', is_approved_for_student_view: false }).select('id, case_id, storage_path').single();
       if (imageRowError || !imageRow) { await failDraft(`تم رفع ${file.name} لكن تعذر تسجيل الصورة: ${imageRowError?.message || 'لم تُعد قاعدة البيانات السجل.'}`); return; }
       const { data: imageReadback, error: imageReadbackError } = await supabase.from('case_images').select('id, case_id, storage_path').eq('id', imageRow.id).eq('case_id', createdCase.id).single();
-      if (imageReadbackError || !imageReadback || imageReadback.storage_path !== path) { await failDraft(`تم تسجيل ${file.name} لكن Readback من قاعدة البيانات لم يؤكده.`); return; }
+      if (imageReadbackError || !imageReadback || imageReadback.storage_path !== actualPath) { await failDraft(`تم تسجيل ${file.name} لكن Readback من قاعدة البيانات لم يؤكده.`); return; }
     }
     retryCleanup.current = null;
     setSuccess(`تم إرسال الحالة ${savedCase.case_number} للمراجعة.`);

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/Header';
 import { useAuth } from '../../context/AuthContext';
+import { callBackend } from '../../lib/firebaseData';
 import { supabase } from '../../lib/supabase';
 
 type Option = { id: string; name_ar: string };
@@ -52,7 +53,9 @@ export const NewRequest = () => {
     if (!profile || profile.role !== 'STUDENT' || profile.status !== 'VERIFIED') { setError('يجب أن يكون حساب طالب طب الأسنان موثقاً قبل إرسال الطلب.'); submitLock.current = false; return; }
     if (universityIds.length < 1 || universityIds.length > 4) { setError('اختر جامعة واحدة إلى أربع جامعات من القائمة.'); submitLock.current = false; return; }
     setSaving(true);
-    const { data: request, error: requestError } = await supabase.from('student_requests').insert({ student_id: user.id, province_id: form.province_id || null, clinical_category_id: form.clinical_category_id || null, tooth_area: form.tooth_area || null, available_days: form.available_days, notes: form.notes || null }).select('id, request_number').single();
+    let request: { id: string; request_number: string } | null = null;
+    let requestError: { message: string } | null = null;
+    try { request = (await callBackend<{ data: { id: string; request_number: string } }>('/api/create_student_request', { province_id: form.province_id || null, clinical_category_id: form.clinical_category_id || null, tooth_area: form.tooth_area || null, available_days: form.available_days, notes: form.notes || null })).data; } catch (error) { requestError = { message: error instanceof Error ? error.message : String(error) }; }
     if (requestError || !request) { setError(requestError?.message || 'تعذر إرسال الطلب.'); setSaving(false); submitLock.current = false; return; }
     const { data: savedRequest, error: readbackError } = await supabase.from('student_requests').select('id, request_number, student_id, status').eq('id', request.id).eq('student_id', user.id).single();
     if (readbackError || !savedRequest) { setError(`تم الحفظ لكن تعذر التحقق من الطلب: ${readbackError?.message || 'لم تُعد قاعدة البيانات السجل.'}`); setSaving(false); submitLock.current = false; return; }
