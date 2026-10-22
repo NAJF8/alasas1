@@ -48,13 +48,8 @@ const rpc = async <T = any>(name: string, args: any = {}) => {
     if (name === 'search_anonymized_patient_cases') return { data: await callBackend<T>('/api/search_anonymized_patient_cases', args), error: null };
     if (name === 'admin_list_managers') return { data: await listManagers(), error: null };
     if (name === 'admin_list_manager_invitations') return { data: await listInvitations(), error: null };
-    if (name === 'admin_create_manager_invitation') {
-      const email = String(args.email || '').trim().toLowerCase();
-      if (!email || !email.includes('@') || !['ADMIN', 'STAFF'].includes(args.role)) throw new Error('بيانات الدعوة غير صحيحة.');
-      const reference = await addDoc(collection(db, 'manager_invitations'), { email, role: args.role, permissions: Array.isArray(args.permissions) ? args.permissions : [], status: 'PENDING', expires_at: new Date(Date.now() + 86400000).toISOString(), created_at: serverTimestamp() });
-      return { data: { invitation_id: reference.id, email, status: 'PENDING' }, error: null };
-    }
-    if (name === 'admin_update_manager') { await updateDoc(doc(db, 'profiles', String(args.p_profile_id)), { role: args.p_role, status: args.p_status, permissions: args.p_permissions || [], updated_at: serverTimestamp() }); return { data: { ok: true }, error: null }; }
+    if (name === 'admin_create_manager_invitation') return { data: await callBackend<T>('/api/manager-invite', { email: args.email, role: args.role, permissions: args.permissions }), error: null };
+    if (name === 'admin_update_manager') return { data: await callBackend<T>('/api/manager-update', { profile_id: args.p_profile_id, role: args.p_role, status: args.p_status, permissions: args.p_permissions }), error: null };
     throw new Error(`Firebase Worker route not implemented: ${name}`);
   } catch (error) { return { data: null, error: { message: error instanceof Error ? error.message : String(error) } }; }
 };

@@ -1,5 +1,6 @@
-import { HashRouter, Navigate, Routes, Route } from 'react-router-dom';
+import { HashRouter, Link, Navigate, Routes, Route } from 'react-router-dom';
 import { lazy, Suspense, useEffect } from 'react';
+import { ShieldAlert } from 'lucide-react';
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
 import { RegistrationRequest } from './pages/RegistrationRequest';
@@ -53,8 +54,12 @@ const DashboardRoute = () => {
   if (!user) return <Navigate to="/login" replace />;
   if (!isProfileComplete(profile)) return <Navigate to="/onboarding" replace />;
   if (!profile) return <Navigate to="/onboarding" replace />;
+  if (profile.status === 'SUSPENDED') return <AccountStatus />;
+  if (profile.role === 'STUDENT' && profile.status !== 'VERIFIED') return <Navigate to="/student/verification" replace />;
   return profile.role === 'STUDENT' ? <Navigate to="/student/search" replace /> : <Navigate to="/patient/dashboard" replace />;
 };
+
+const AccountStatus = () => <main className="auth-page" dir="rtl"><section className="auth-card"><div className="auth-mark"><ShieldAlert size={30} /></div><h1>الحساب موقوف</h1><p>لا يمكن فتح الصفحات المحمية لهذا الحساب. تواصل مع إدارة المنصة لمراجعة الحالة.</p><Link className="auth-primary-button" to="/">العودة إلى الصفحة الرئيسية</Link></section></main>;
 
 const ProtectedDashboard = ({ role, children }: { role: CustomerRole; children: React.ReactNode }) => {
   const { user, profile, loading } = useAuth();
@@ -62,6 +67,8 @@ const ProtectedDashboard = ({ role, children }: { role: CustomerRole; children: 
   if (!user) return <Navigate to="/login" replace />;
   if (!isProfileComplete(profile)) return <Navigate to="/onboarding" replace />;
   if (!profile) return <Navigate to="/onboarding" replace />;
+  if (profile.status === 'SUSPENDED') return <AccountStatus />;
+  if (role === 'STUDENT' && profile.status !== 'VERIFIED') return <Navigate to="/student/verification" replace />;
   if (profile.role !== role) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 };
@@ -82,7 +89,7 @@ function App() {
         <Route path="/patient/dashboard" element={<ProtectedDashboard role="PATIENT"><PatientDashboard /></ProtectedDashboard>} />
         <Route path="/student/search" element={<ProtectedDashboard role="STUDENT"><SearchCases /></ProtectedDashboard>} />
         <Route path="/student/request" element={<ProtectedDashboard role="STUDENT"><NewRequest /></ProtectedDashboard>} />
-        <Route path="/student/verification" element={<ProtectedDashboard role="STUDENT"><Verification /></ProtectedDashboard>} />
+        <Route path="/student/verification" element={<Verification />} />
         {/* Placeholder for other routes */}
         <Route path="/how-it-works" element={<PublicSectionRoute sectionId="how-it-works" />} />
         <Route path="/patients" element={<Navigate to="/patient/new-case" replace />} />

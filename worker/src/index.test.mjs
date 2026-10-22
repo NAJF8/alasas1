@@ -23,3 +23,14 @@ test('registration validates before attempting any backend secret', async () => 
   assert.equal(response.status, 400);
   assert.equal((await response.json()).error, 'INVALID_REGISTRATION');
 });
+
+test('phone login rejects incomplete credentials without exposing backend configuration', async () => {
+  const response = await request('/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ phone: '', password: '' }) });
+  assert.equal(response.status, 401);
+  assert.equal((await response.json()).error, 'INVALID_CREDENTIALS');
+});
+
+test('manager mutations remain protected behind Firebase identity', async () => {
+  assert.equal((await request('/api/manager-invite', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'manager@example.com', role: 'ADMIN' }) })).status, 401);
+  assert.equal((await request('/api/manager-update', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ profile_id: 'manager', role: 'STAFF', status: 'VERIFIED' }) })).status, 401);
+});

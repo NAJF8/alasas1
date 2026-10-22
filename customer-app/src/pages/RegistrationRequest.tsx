@@ -1,26 +1,16 @@
-import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff, GraduationCap, ShieldCheck, UserRound } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { AlertCircle, ArrowLeft, ArrowRight, Check, CheckCircle2, Eye, EyeOff, GraduationCap, ShieldCheck, University, UserRound } from 'lucide-react';
+import { signInWithCustomToken } from 'firebase/auth';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { auth } from '../lib/firebase';
 import { getActiveProvinces, getActiveUniversities, type ProvinceOption, type UniversityOption } from '../lib/referenceData';
 import { normalizeIraqiPhone } from '../lib/phoneAuth';
 import { isRegistrationRole, isStrongRegistrationPassword, normalizeRegistrationPassword, readRegistrationRole, registrationPasswordStrength, writeRegistrationRole, type RegistrationRole } from '../lib/registrationFlow';
 import { firebaseData as supabase } from '../lib/firebaseData';
 
 type AreaOption = { id: string; name_ar: string };
-type Values = {
-  phone: string;
-  password: string;
-  confirmPassword: string;
-  fullName: string;
-  gender: string;
-  provinceId: string;
-  areaId: string;
-  birthDate: string;
-  universityId: string;
-  stage: string;
-};
-
-const initialValues: Values = { phone: '', password: '', confirmPassword: '', fullName: '', gender: '', provinceId: '', areaId: '', birthDate: '', universityId: '', stage: '' };
+type Values = { phone: string; whatsapp: string; password: string; confirmPassword: string; fullName: string; gender: string; provinceId: string; areaId: string; birthDate: string; universityId: string; preferredUniversityIds: string[]; stage: string; acceptedTerms: boolean };
+const initialValues: Values = { phone: '', whatsapp: '', password: '', confirmPassword: '', fullName: '', gender: '', provinceId: '', areaId: '', birthDate: '', universityId: '', preferredUniversityIds: [], stage: '', acceptedTerms: false };
 const stages = [{ value: 'THIRD', label: 'الثالثة' }, { value: 'FOURTH', label: 'الرابعة' }, { value: 'FIFTH', label: 'الخامسة' }];
 const roleLabel = (role: RegistrationRole) => role === 'PATIENT' ? 'مريض' : 'طالب طب أسنان';
 
@@ -28,11 +18,12 @@ const RolePicker = ({ onSelect }: { onSelect: (role: RegistrationRole) => void }
 
 export const RegistrationRequest = () => {
   const [params, setParams] = useSearchParams();
-  const requestedRoleParam = params.get('role');
-  const requestedRole = isRegistrationRole(requestedRoleParam) ? requestedRoleParam : null;
+  const navigate = useNavigate();
+  const requestedRole = isRegistrationRole(params.get('role')) ? params.get('role') as RegistrationRole : null;
   const [role, setRole] = useState<RegistrationRole | null>(() => requestedRole || readRegistrationRole());
   const [step, setStep] = useState<1 | 2>(1);
   const [values, setValues] = useState<Values>(initialValues);
+  const [sameWhatsapp, setSameWhatsapp] = useState(false);
   const [provinces, setProvinces] = useState<ProvinceOption[]>([]);
   const [universities, setUniversities] = useState<UniversityOption[]>([]);
   const [areas, setAreas] = useState<AreaOption[]>([]);
@@ -46,124 +37,21 @@ export const RegistrationRequest = () => {
   const isStudent = role === 'STUDENT';
   const registrationBackendEnabled = import.meta.env.VITE_REGISTRATION_BACKEND_ENABLED === 'true';
 
-  useEffect(() => {
-    if (!requestedRole || requestedRole === role) return;
-    writeRegistrationRole(requestedRole);
-    setRole(requestedRole);
-    setStep(1);
-    setValues(initialValues);
-    setError(null);
-  }, [requestedRole, role]);
+  useEffect(() => { if (!requestedRole || requestedRole === role) return; writeRegistrationRole(requestedRole); setRole(requestedRole); setStep(1); setValues(initialValues); setError(null); }, [requestedRole, role]);
+  useEffect(() => { if (!role || (requestedRole && requestedRole !== role)) return; writeRegistrationRole(role); if (params.get('role') !== role || params.get('start')) { const next = new URLSearchParams(params); next.set('role', role); next.delete('start'); setParams(next, { replace: true }); } }, [params, requestedRole, role, setParams]);
+  useEffect(() => { let active = true; void Promise.all([getActiveProvinces(), getActiveUniversities()]).then(([provinceRows, universityRows]) => { if (!active) return; setProvinces(provinceRows); setUniversities(universityRows); }); return () => { active = false; }; }, []);
+  useEffect(() => { if (!values.provinceId) { setAreas([]); return; } let active = true; void supabase.from('areas').select('id,name_ar,province_id,is_active').limit(500).then(({ data }) => { if (active) setAreas((data || []).filter((row: any) => row.province_id === values.provinceId && row.is_active).sort((a: any, b: any) => String(a.name_ar).localeCompare(String(b.name_ar), 'ar')) as AreaOption[]); }); return () => { active = false; }; }, [values.provinceId]);
 
-  useEffect(() => {
-    if (!role) return;
-    if (requestedRole && requestedRole !== role) return;
-    writeRegistrationRole(role);
-    if (params.get('role') !== role || params.get('start')) {
-      const nextParams = new URLSearchParams(params);
-      nextParams.set('role', role);
-      nextParams.delete('start');
-      setParams(nextParams, { replace: true });
-    }
-  }, [params, requestedRole, role, setParams]);
-
-  useEffect(() => {
-    let active = true;
-    void Promise.all([getActiveProvinces(), getActiveUniversities()]).then(([provinceRows, universityRows]) => {
-      if (!active) return;
-      setProvinces(provinceRows);
-      setUniversities(universityRows);
-    });
-    return () => { active = false; };
-  }, []);
-
-  useEffect(() => {
-    if (!values.provinceId) return;
-    let active = true;
-    void supabase.from('areas').select('id,name_ar,province_id,is_active').limit(500).then(({ data, error: areaError }) => {
-      if (areaError) console.error('Area list load failed:', areaError.message);
-      if (active) setAreas((data || []).filter((row: any) => row.province_id === values.provinceId && row.is_active).sort((a: any, b: any) => String(a.name_ar).localeCompare(String(b.name_ar), 'ar')) as AreaOption[]);
-    });
-    return () => { active = false; };
-  }, [values.provinceId]);
-
-  const set = <Key extends keyof Values>(key: Key, value: Values[Key]) => {
-    setValues((current) => ({ ...current, [key]: value }));
-    setProfileReady(false);
-    setError(null);
-  };
-
-  const chooseRole = (nextRole: RegistrationRole) => {
-    writeRegistrationRole(nextRole);
-    setRole(nextRole);
-    setParams({ role: nextRole }, { replace: true });
-  };
-
-  const validateCredentials = () => {
-    if (!normalizedPhone) return 'أدخل رقماً عراقياً صحيحاً بصيغة 07XXXXXXXXX.';
-    const password = normalizeRegistrationPassword(values.password);
-    const confirmation = normalizeRegistrationPassword(values.confirmPassword);
-    if (password.length < 8) return 'يجب أن تتكون كلمة المرور من 8 أحرف على الأقل.';
-    if (password.length > 128) return 'كلمة المرور طويلة جداً. الحد الأقصى 128 حرفاً.';
-    if (!isStrongRegistrationPassword(password)) return 'اختر كلمة مرور أقوى تحتوي على حروف ورقم أو رمز، وتجنب الكلمات الشائعة.';
-    if (password !== confirmation) return 'تأكيد كلمة المرور غير مطابق.';
-    return null;
-  };
-
-  const validateProfile = () => {
-    if (!values.fullName.trim() || !values.gender || !values.provinceId) return 'أكمل الاسم والجنس والمحافظة.';
-    if (isStudent && (!values.universityId || !values.stage)) return 'اختر الجامعة والمرحلة الدراسية.';
-    if (!isStudent && (!values.areaId || !values.birthDate)) return 'أكمل المنطقة وتاريخ الميلاد للمريض.';
-    return null;
-  };
-
-  const continueToProfile = (event: FormEvent) => {
-    event.preventDefault();
-    const message = validateCredentials();
-    if (message) { setError(message); return; }
-    setError(null);
-    setStep(2);
-  };
-
-  const reviewProfile = (event: FormEvent) => {
-    event.preventDefault();
-    const message = validateProfile();
-    if (message) { setError(message); return; }
-    setError(null);
-    setProfileReady(true);
-  };
-
-  const submitRegistration = async () => {
-    if (!role || !profileReady || !registrationBackendEnabled || submitted) return;
-    setSubmitting(true);
-    setError(null);
-    const { data, error: invokeError } = await supabase.functions.invoke('registration-request', {
-      body: {
-        full_name: values.fullName.trim(),
-        phone: normalizedPhone,
-        password: values.password,
-        password_confirmation: values.confirmPassword,
-        role,
-        gender: values.gender,
-        province_id: values.provinceId,
-        area_id: values.areaId || null,
-        birth_date: values.birthDate || null,
-        university_id: values.universityId || null,
-        stage: values.stage || null,
-      },
-    });
-    if (invokeError || !data?.request_id || data.status !== 'PENDING') {
-      setError(invokeError?.message || 'لم يؤكد Backend حفظ طلب التسجيل بحالة انتظار.');
-      setSubmitting(false);
-      return;
-    }
-    setSubmitted(true);
-    setValues((current) => ({ ...current, password: '', confirmPassword: '' }));
-    setSubmitting(false);
-  };
+  const set = <Key extends keyof Values>(key: Key, value: Values[Key]) => { setValues((current) => ({ ...current, [key]: value })); setProfileReady(false); setError(null); };
+  const chooseRole = (nextRole: RegistrationRole) => { writeRegistrationRole(nextRole); setRole(nextRole); setParams({ role: nextRole }, { replace: true }); };
+  const toggleUniversity = (id: string) => set('preferredUniversityIds', values.preferredUniversityIds.includes(id) ? values.preferredUniversityIds.filter((item) => item !== id) : values.preferredUniversityIds.length < 4 ? [...values.preferredUniversityIds, id] : values.preferredUniversityIds);
+  const validateCredentials = () => { if (!normalizedPhone) return 'أدخل رقماً عراقياً صحيحاً بصيغة 07XXXXXXXXX.'; const password = normalizeRegistrationPassword(values.password); if (password.length < 8 || password.length > 128) return 'يجب أن تتكون كلمة المرور من 8 إلى 128 حرفاً.'; if (!isStrongRegistrationPassword(password)) return 'اختر كلمة مرور أقوى تحتوي على حروف ورقم أو رمز.'; if (password !== normalizeRegistrationPassword(values.confirmPassword)) return 'تأكيد كلمة المرور غير مطابق.'; return null; };
+  const validateProfile = () => { if (!values.fullName.trim() || !values.gender || !values.provinceId || !values.acceptedTerms) return 'أكمل البيانات الشخصية ووافق على الشروط والخصوصية.'; if (!isStudent && (!values.areaId || !values.birthDate)) return 'أكمل المنطقة وتاريخ الميلاد للمريض.'; if (isStudent && (!values.universityId || !values.stage)) return 'اختر الجامعة الأساسية والمرحلة الدراسية.'; if (values.preferredUniversityIds.length < 1 || values.preferredUniversityIds.length > 4) return 'اختر جامعة واحدة إلى أربع جامعات مناسبة لك.'; return null; };
+  const continueToProfile = (event: FormEvent) => { event.preventDefault(); const message = validateCredentials(); if (message) { setError(message); return; } setError(null); setStep(2); };
+  const reviewProfile = (event: FormEvent) => { event.preventDefault(); const message = validateProfile(); if (message) { setError(message); return; } setError(null); setProfileReady(true); };
+  const submitRegistration = async () => { if (!role || !profileReady || !registrationBackendEnabled || submitted || !normalizedPhone) return; setSubmitting(true); setError(null); const { data, error: invokeError } = await supabase.functions.invoke('registration-request', { body: { full_name: values.fullName.trim(), phone: normalizedPhone, whatsapp: values.whatsapp ? normalizeIraqiPhone(values.whatsapp) : normalizedPhone, password: values.password, password_confirmation: values.confirmPassword, role, gender: values.gender, province_id: values.provinceId, area_id: values.areaId || null, birth_date: values.birthDate || null, university_id: values.universityId || values.preferredUniversityIds[0] || null, preferred_university_ids: values.preferredUniversityIds, stage: values.stage || null } }); if (invokeError || !data?.request_id || data.status !== 'PENDING' || !data.custom_token) { setError(invokeError?.message || 'لم يؤكد Backend حفظ طلب التسجيل وإنشاء جلسة آمنة.'); setSubmitting(false); return; } try { await signInWithCustomToken(auth, data.custom_token); setSubmitted(true); setValues((current) => ({ ...current, password: '', confirmPassword: '' })); navigate('/dashboard', { replace: true }); } catch { setError('تم حفظ الطلب لكن تعذر فتح الجلسة. سجّل الدخول لاحقاً برقم الهاتف وكلمة المرور.'); } finally { setSubmitting(false); } };
 
   if (!role) return <RolePicker onSelect={chooseRole} />;
-
   const passwordStrength = registrationPasswordStrength(values.password);
-  return <main className="auth-page register-page" dir="rtl"><section className="register-shell registration-flow-shell"><header className="registration-header"><div><span className="auth-eyebrow">أسنان الأساس</span><h1>إنشاء حساب جديد</h1><p>{isStudent ? 'أكمل بيانات الطالب المناسبة لك.' : 'أكمل بيانات المريض المناسبة لك.'}</p></div><div className="registration-role-badge"><ShieldCheck size={17} /> الدور المحدد: {roleLabel(role)}</div></header><div className="registration-progress" aria-label="مراحل التسجيل"><div className={`registration-progress-step ${step === 1 ? 'is-current' : 'is-done'}`}><span>{step === 1 ? '1' : <CheckCircle2 size={17} />}</span><small>الهاتف وكلمة المرور</small></div><div className={`registration-progress-line ${step === 2 ? 'is-done' : ''}`} /><div className={`registration-progress-step ${step === 2 ? 'is-current' : ''}`}><span>2</span><small>البيانات الشخصية</small></div></div>{step === 1 ? <form onSubmit={continueToProfile} className="registration-form"><div className="registration-step-heading"><span>الخطوة 1 من 2</span><h2>أنشئ بيانات الدخول</h2><p>لا توجد رسائل SMS أو رموز OTP. اختر كلمة مرور خاصة بك.</p></div><label className="auth-field"><span>رقم الهاتف العراقي</span><input required inputMode="tel" autoComplete="tel" placeholder="07XXXXXXXXX" value={values.phone} onChange={(event) => set('phone', event.target.value)} /><small>{normalizedPhone ? `الصيغة المعتمدة: ${normalizedPhone}` : 'يُقبل 07XXXXXXXXX أو +9647XXXXXXXXX'}</small></label><div className="onboarding-grid"><label className="onboarding-field"><span>كلمة المرور</span><div className="registration-password-field"><input required autoComplete="new-password" minLength={8} maxLength={128} type={showPassword ? 'text' : 'password'} value={values.password} onChange={(event) => set('password', normalizeRegistrationPassword(event.target.value))} /><button type="button" aria-label={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'} onClick={() => setShowPassword((visible) => !visible)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div><div className={`registration-password-strength strength-${passwordStrength === 'قوية' ? 'strong' : passwordStrength === 'متوسطة' ? 'medium' : 'weak'}`} aria-live="polite">قوة كلمة المرور: {passwordStrength}</div></label><label className="onboarding-field"><span>تأكيد كلمة المرور</span><div className="registration-password-field"><input required autoComplete="new-password" minLength={8} maxLength={128} type={showConfirmPassword ? 'text' : 'password'} value={values.confirmPassword} onChange={(event) => set('confirmPassword', normalizeRegistrationPassword(event.target.value))} /><button type="button" aria-label={showConfirmPassword ? 'إخفاء تأكيد كلمة المرور' : 'إظهار تأكيد تأكيد كلمة المرور'} onClick={() => setShowConfirmPassword((visible) => !visible)}>{showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></label></div><div className="registration-security-note"><ShieldCheck size={18} /><span>استخدم 8 أحرف على الأقل، مع حروف ورقم أو رمز. كلمة المرور لا تُحفظ في المتصفح.</span></div>{error && <p className="auth-error" role="alert"><AlertCircle size={18} /> {error}</p>}<button type="submit" className="auth-primary-button"><ShieldCheck size={19} /> إنشاء الحساب</button></form> : <form onSubmit={reviewProfile} className="registration-form"><div className="registration-step-heading"><span>الخطوة 2 من 2</span><h2>بيانات {isStudent ? 'الطالب' : 'المريض'}</h2><p>أجب عن بيانات الدور المحدد فقط. لن يُعاد طلب اختيار الدور.</p></div><div className="registration-phone-summary"><span>رقم الهاتف</span><strong>{normalizedPhone}</strong><button type="button" onClick={() => setStep(1)}>تعديل</button></div><div className="onboarding-grid"><label className="onboarding-field"><span>الاسم الكامل</span><input required autoComplete="name" value={values.fullName} onChange={(event) => set('fullName', event.target.value)} /></label><label className="onboarding-field"><span>الجنس</span><select required value={values.gender} onChange={(event) => set('gender', event.target.value)}><option value="">اختر الجنس</option><option value="MALE">ذكر</option><option value="FEMALE">أنثى</option></select></label><label className="onboarding-field"><span>المحافظة</span><select required value={values.provinceId} onChange={(event) => { set('provinceId', event.target.value); set('areaId', ''); }}><option value="">اختر المحافظة</option>{provinces.map((item) => <option key={item.id} value={item.id}>{item.name_ar}</option>)}</select></label>{!isStudent && <><label className="onboarding-field"><span>المنطقة</span><select required value={values.areaId} onChange={(event) => set('areaId', event.target.value)}><option value="">اختر المنطقة</option>{areas.map((item) => <option key={item.id} value={item.id}>{item.name_ar}</option>)}</select></label><label className="onboarding-field"><span>تاريخ الميلاد</span><input required type="date" value={values.birthDate} onChange={(event) => set('birthDate', event.target.value)} /></label></>}{isStudent && <><label className="onboarding-field"><span>الجامعة</span><select required value={values.universityId} onChange={(event) => set('universityId', event.target.value)}><option value="">اختر الجامعة</option>{universities.map((item) => <option key={item.id} value={item.id}>{item.name_ar}</option>)}</select></label><label className="onboarding-field"><span>المرحلة الدراسية</span><select required value={values.stage} onChange={(event) => set('stage', event.target.value)}><option value="">اختر المرحلة</option>{stages.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label></>}</div>{error && <p className="auth-error" role="alert"><AlertCircle size={18} /> {error}</p>}{profileReady && !registrationBackendEnabled && <div className="registration-unavailable" role="status"><AlertCircle size={20} /><div><strong>الحفظ غير متاح حالياً</strong><p>Backend التسجيل غير مفعّل على Production. لم تُرسل البيانات، ولم يُنشأ حساب أو جلسة.</p></div></div>}{submitted && <div className="registration-unavailable" role="status"><CheckCircle2 size={20} /><div><strong>تم استلام طلب التسجيل</strong><p>تم حفظ الطلب بحالة PENDING. ستراجعه الإدارة قبل تفعيل الحساب.</p></div></div>}<div className="registration-actions"><button type="button" className="wizard-back" onClick={() => setStep(1)} disabled={submitting}><ArrowRight size={18} /> السابق</button>{!profileReady ? <button type="submit" className="auth-primary-button"><ArrowLeft size={18} /> مراجعة طلب التسجيل</button> : registrationBackendEnabled ? <button type="button" className="auth-primary-button" disabled={submitting || submitted} onClick={() => void submitRegistration()}><ShieldCheck size={18} /> {submitting ? 'جارٍ إرسال الطلب…' : submitted ? 'تم إرسال الطلب' : 'إرسال طلب التسجيل'}</button> : <button type="button" className="auth-primary-button" disabled title="Backend التسجيل غير مفعّل على Production"><ShieldCheck size={18} /> إرسال طلب التسجيل — غير متاح حالياً</button>}</div></form>}<div className="registration-footer-note"><ShieldCheck size={16} /><span>لن تظهر رسالة نجاح إلا بعد حفظ الطلب فعلياً وقراءة النتيجة من Backend.</span></div><p className="auth-switch"><Link to="/">العودة إلى الصفحة الرئيسية</Link><span> · </span><Link to="/login">تسجيل الدخول للحسابات الحالية</Link></p></section></main>;
+  return <main className="auth-page register-page" dir="rtl"><section className="register-shell registration-flow-shell"><header className="registration-header"><div><span className="auth-eyebrow">أسنان الأساس</span><h1>إنشاء حساب جديد</h1><p>{isStudent ? 'أكمل بيانات الطالب المناسبة لك.' : 'أكمل بيانات المريض المناسبة لك.'}</p></div><div className="registration-role-badge"><ShieldCheck size={17} /> الدور المحدد: {roleLabel(role)}</div></header><div className="registration-progress" aria-label="مراحل التسجيل"><div className={`registration-progress-step ${step === 1 ? 'is-current' : 'is-done'}`}><span>{step === 1 ? '1' : <CheckCircle2 size={17} />}</span><small>الهاتف وكلمة المرور</small></div><div className={`registration-progress-line ${step === 2 ? 'is-done' : ''}`} /><div className={`registration-progress-step ${step === 2 ? 'is-current' : ''}`}><span>2</span><small>البيانات والمراجعة</small></div></div>{step === 1 ? <form onSubmit={continueToProfile} className="registration-form"><div className="registration-step-heading"><span>الخطوة 1 من 2</span><h2>أنشئ بيانات الدخول</h2><p>تُستخدم كلمة المرور لتسجيل الدخول الآمن عبر Worker، ولا تُحفظ في المتصفح.</p></div><label className="auth-field"><span>رقم الهاتف العراقي</span><input required inputMode="tel" autoComplete="tel" placeholder="07XXXXXXXXX" value={values.phone} onChange={(event) => set('phone', event.target.value)} /><small>{normalizedPhone ? `الصيغة المعتمدة: ${normalizedPhone}` : 'يُقبل 07XXXXXXXXX أو +9647XXXXXXXXX'}</small></label><div className="onboarding-grid"><label className="onboarding-field"><span>كلمة المرور</span><div className="registration-password-field"><input required autoComplete="new-password" minLength={8} maxLength={128} type={showPassword ? 'text' : 'password'} value={values.password} onChange={(event) => set('password', normalizeRegistrationPassword(event.target.value))} /><button type="button" aria-label={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'} onClick={() => setShowPassword((visible) => !visible)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div><div className={`registration-password-strength strength-${passwordStrength === 'قوية' ? 'strong' : passwordStrength === 'متوسطة' ? 'medium' : 'weak'}`} aria-live="polite">قوة كلمة المرور: {passwordStrength}</div></label><label className="onboarding-field"><span>تأكيد كلمة المرور</span><div className="registration-password-field"><input required autoComplete="new-password" minLength={8} maxLength={128} type={showConfirmPassword ? 'text' : 'password'} value={values.confirmPassword} onChange={(event) => set('confirmPassword', normalizeRegistrationPassword(event.target.value))} /><button type="button" aria-label={showConfirmPassword ? 'إخفاء تأكيد كلمة المرور' : 'إظهار تأكيد تأكيد كلمة المرور'} onClick={() => setShowConfirmPassword((visible) => !visible)}>{showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></label></div>{error && <p className="auth-error" role="alert"><AlertCircle size={18} /> {error}</p>}<button type="submit" className="auth-primary-button"><ShieldCheck size={19} /> متابعة البيانات الشخصية</button></form> : <form onSubmit={reviewProfile} className="registration-form"><div className="registration-step-heading"><span>الخطوة 2 من 2</span><h2>راجع بيانات {isStudent ? 'الطالب' : 'المريض'}</h2><p>لن يتم إرسال الطلب قبل اكتمال البيانات والموافقة.</p></div><div className="registration-phone-summary"><span>رقم الهاتف</span><strong>{normalizedPhone}</strong><button type="button" onClick={() => setStep(1)}>تعديل</button></div><div className="onboarding-grid"><label className="onboarding-field"><span>الاسم الكامل</span><input required autoComplete="name" value={values.fullName} onChange={(event) => set('fullName', event.target.value)} /></label><label className="onboarding-field"><span>الجنس</span><select required value={values.gender} onChange={(event) => set('gender', event.target.value)}><option value="">اختر الجنس</option><option value="MALE">ذكر</option><option value="FEMALE">أنثى</option></select></label><label className="onboarding-field"><span>المحافظة</span><select required value={values.provinceId} onChange={(event) => { set('provinceId', event.target.value); set('areaId', ''); }}><option value="">اختر المحافظة</option>{provinces.map((item) => <option key={item.id} value={item.id}>{item.name_ar}</option>)}</select></label><label className="onboarding-field"><span>رقم WhatsApp</span><input inputMode="tel" autoComplete="tel" placeholder="اختياري" value={sameWhatsapp ? values.phone : values.whatsapp} onChange={(event) => set('whatsapp', event.target.value)} disabled={sameWhatsapp} /></label><label className="checkbox-row"><input type="checkbox" checked={sameWhatsapp} onChange={(event) => { setSameWhatsapp(event.target.checked); if (event.target.checked) set('whatsapp', values.phone); }} /> نفس رقم الهاتف</label>{!isStudent && <><label className="onboarding-field"><span>المنطقة</span><select required value={values.areaId} onChange={(event) => set('areaId', event.target.value)}><option value="">اختر المنطقة</option>{areas.map((item) => <option key={item.id} value={item.id}>{item.name_ar}</option>)}</select></label><label className="onboarding-field"><span>تاريخ الميلاد</span><input required type="date" value={values.birthDate} onChange={(event) => set('birthDate', event.target.value)} /></label></>}{isStudent && <><label className="onboarding-field"><span>الجامعة الأساسية</span><select required value={values.universityId} onChange={(event) => set('universityId', event.target.value)}><option value="">اختر الجامعة</option>{universities.map((item) => <option key={item.id} value={item.id}>{item.name_ar}</option>)}</select></label><label className="onboarding-field"><span>المرحلة الدراسية</span><select required value={values.stage} onChange={(event) => set('stage', event.target.value)}><option value="">اختر المرحلة</option>{stages.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label></>}</div><div className="registration-university-picker"><div className="registration-picker-heading"><div><strong>الجامعات المفضلة</strong><small>اختر من جامعة إلى أربع جامعات نشطة.</small></div><b>{values.preferredUniversityIds.length} / 4</b></div><div className="university-card-grid">{universities.map((item) => <button type="button" key={item.id} onClick={() => toggleUniversity(item.id)} className={`university-select-card ${values.preferredUniversityIds.includes(item.id) ? 'is-selected' : ''}`}><span className="university-card-icon"><University size={20} /></span><span><b>{item.name_ar}</b><small>{provinces.find((province) => province.id === item.province_id)?.name_ar || 'جامعة نشطة'}</small></span>{values.preferredUniversityIds.includes(item.id) && <CheckCircle2 size={18} />}</button>)}</div></div><label className="checkbox-row"><input type="checkbox" checked={values.acceptedTerms} onChange={(event) => set('acceptedTerms', event.target.checked)} /> أوافق على شروط الاستخدام والخصوصية، وأفهم أن البيانات الطبية لا تُعرض للطلاب إلا بتفويض مناسب.</label>{profileReady && <div className="registration-review" role="status"><Check size={17} /><span>تمت مراجعة البيانات. عند الإرسال سيُحفظ الطلب بحالة قيد المراجعة.</span></div>}{submitted && <div className="registration-review" role="status"><CheckCircle2 size={17} /><span>تم حفظ الطلب وفتح جلستك. حالة الحساب قيد المراجعة.</span></div>}{error && <p className="auth-error" role="alert"><AlertCircle size={18} /> {error}</p>}<div className="registration-actions"><button type="button" className="wizard-back" onClick={() => setStep(1)} disabled={submitting}><ArrowRight size={18} /> السابق</button>{!profileReady ? <button type="submit" className="auth-primary-button"><ArrowLeft size={18} /> مراجعة البيانات</button> : registrationBackendEnabled ? <button type="button" className="auth-primary-button" disabled={submitting || submitted} onClick={() => void submitRegistration()}><ShieldCheck size={18} /> {submitting ? 'جارٍ حفظ الطلب…' : 'إرسال طلب التسجيل'}</button> : <button type="button" className="auth-primary-button" disabled title="Backend التسجيل غير مفعّل في هذه البيئة"><ShieldCheck size={18} /> الإرسال غير متاح في هذه البيئة</button>}</div></form>}<div className="registration-footer-note"><ShieldCheck size={16} /><span>لن تظهر رسالة نجاح إلا بعد حفظ الطلب فعلياً وقراءة النتيجة من Backend.</span></div><p className="auth-switch"><Link to="/">العودة إلى الصفحة الرئيسية</Link><span> · </span><Link to="/login">تسجيل الدخول للحسابات الحالية</Link></p></section></main>;
 };
