@@ -10,6 +10,30 @@
       ]
     },
     {
+      "collectionGroup": "universities",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "is_active", "order": "DESCENDING" },
+        { "fieldPath": "name_ar", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "provinces",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "is_active", "order": "ASCENDING" },
+        { "fieldPath": "name_ar", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "provinces",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "is_active", "order": "DESCENDING" },
+        { "fieldPath": "name_ar", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "areas",
       "queryScope": "COLLECTION",
       "fields": [
