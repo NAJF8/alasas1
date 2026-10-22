@@ -21,7 +21,8 @@ const AuthNotice = () => {
 };
 
 const HomeRoute = () => {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, profileError, refreshProfile } = useAuth();
+  if (!loading && user && profileError) return <ProfileLoadError message={profileError} retry={() => void refreshProfile()} />;
   if (!loading && user) {
     const intent = readAuthIntent();
     // A persisted session can outlive the short-lived OAuth intent. A customer
@@ -49,9 +50,10 @@ const HomeRoute = () => {
 };
 
 const DashboardRoute = () => {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, profileError, refreshProfile } = useAuth();
   if (loading) return <div className="min-h-screen grid place-items-center" dir="rtl">جاري التحقق...</div>;
   if (!user) return <Navigate to="/login" replace />;
+  if (profileError) return <ProfileLoadError message={profileError} retry={() => void refreshProfile()} />;
   if (!isProfileComplete(profile)) return <Navigate to="/onboarding" replace />;
   if (!profile) return <Navigate to="/onboarding" replace />;
   if (profile.status === 'SUSPENDED') return <AccountStatus />;
@@ -60,11 +62,13 @@ const DashboardRoute = () => {
 };
 
 const AccountStatus = () => <main className="auth-page" dir="rtl"><section className="auth-card"><div className="auth-mark"><ShieldAlert size={30} /></div><h1>الحساب موقوف</h1><p>لا يمكن فتح الصفحات المحمية لهذا الحساب. تواصل مع إدارة المنصة لمراجعة الحالة.</p><Link className="auth-primary-button" to="/">العودة إلى الصفحة الرئيسية</Link></section></main>;
+const ProfileLoadError = ({ message, retry }: { message: string; retry: () => void }) => <main className="auth-page" dir="rtl"><section className="auth-card"><div className="auth-mark"><ShieldAlert size={30} /></div><h1>تعذر تحميل الحساب</h1><p>{message || 'تعذر تحميل ملف الحساب حالياً.'}</p><button type="button" className="auth-primary-button" onClick={retry}>إعادة المحاولة</button></section></main>;
 
 const ProtectedDashboard = ({ role, children }: { role: CustomerRole; children: React.ReactNode }) => {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, profileError, refreshProfile } = useAuth();
   if (loading) return <div className="min-h-screen grid place-items-center" dir="rtl">جاري التحقق...</div>;
   if (!user) return <Navigate to="/login" replace />;
+  if (profileError) return <ProfileLoadError message={profileError} retry={() => void refreshProfile()} />;
   if (!isProfileComplete(profile)) return <Navigate to="/onboarding" replace />;
   if (!profile) return <Navigate to="/onboarding" replace />;
   if (profile.status === 'SUSPENDED') return <AccountStatus />;

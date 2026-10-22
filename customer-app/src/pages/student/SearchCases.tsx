@@ -16,12 +16,17 @@ export const SearchCases = () => {
   const [query, setQuery] = useState('');
 
   useEffect(() => {
-    if (!user) return;
+    let active = true;
+    setBusy(Boolean(user));
+    setError(null);
+    if (!user) { setCases([]); return () => { active = false; }; }
     void supabase.rpc('search_anonymized_patient_cases', { p_limit: 30, p_offset: 0 }).then(({ data, error: queryError }) => {
+      if (!active) return;
       if (queryError) setError(queryError.message);
       else setCases((data || []) as CaseRow[]);
       setBusy(false);
     });
+    return () => { active = false; };
   }, [user]);
 
   const filteredCases = useMemo(() => {
