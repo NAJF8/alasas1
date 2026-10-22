@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import worker from './index.ts';
 
-const env = { FIREBASE_PROJECT_ID: 'al-asas-dental-staging', ALLOWED_ORIGINS: 'http://localhost:5173' };
+const env = { FIREBASE_PROJECT_ID: 'al-asas-dental-staging', ALLOWED_ORIGINS: 'http://localhost:5173', RELEASE_SHA: 'test-sha' };
 const request = (path, init) => worker.fetch(new Request(`https://worker.test${path}`, init), env);
 
 test('health is staging-only and does not require a secret', async () => {
   const response = await request('/health');
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { ok: true, environment: 'staging', productionWrites: false, version: 'registration-approval-matching-v1' });
+  assert.deepEqual(await response.json(), { ok: true, environment: 'staging', productionWrites: false, version: 'registration-approval-matching-v1', releaseSha: 'test-sha' });
 });
 
 test('protected routes reject absent and malformed Firebase tokens', async () => {
