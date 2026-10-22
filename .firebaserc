@@ -5,8 +5,8 @@
   "targets": {
     "al-asas-dental-staging": {
       "hosting": {
-        "customer": ["al-asas-dental-staging"],
-        "admin": ["al-asas-dental-admin"]
+        "unified": ["al-asas-dental-staging"],
+        "legacy-admin": ["al-asas-dental-admin"]
       }
     }
   }

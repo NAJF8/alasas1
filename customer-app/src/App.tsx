@@ -1,4 +1,4 @@
-import { HashRouter, Link, Navigate, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Link, Navigate, Routes, Route } from 'react-router-dom';
 import { lazy, Suspense, useEffect } from 'react';
 import { ShieldAlert } from 'lucide-react';
 import { Home } from './pages/Home';
@@ -86,11 +86,13 @@ const PublicSectionRoute = ({ sectionId }: { sectionId: string }) => {
 
 function App() {
   return <BrandingProvider><AuthProvider><AuthNotice /><Suspense fallback={<div className="min-h-screen grid place-items-center" dir="rtl">جارٍ تحميل الصفحة...</div>}>
-      <HashRouter><Routes>
+      <BrowserRouter><Routes>
         <Route path="/" element={<HomeRoute />} />
         <Route path="/dashboard" element={<DashboardRoute />} />
         <Route path="/patient/new-case" element={<ProtectedDashboard role="PATIENT"><NewCase /></ProtectedDashboard>} />
+        <Route path="/patient/cases/new" element={<ProtectedDashboard role="PATIENT"><NewCase /></ProtectedDashboard>} />
         <Route path="/patient/dashboard" element={<ProtectedDashboard role="PATIENT"><PatientDashboard /></ProtectedDashboard>} />
+        <Route path="/student/dashboard" element={<ProtectedDashboard role="STUDENT"><Navigate to="/student/search" replace /></ProtectedDashboard>} />
         <Route path="/student/search" element={<ProtectedDashboard role="STUDENT"><SearchCases /></ProtectedDashboard>} />
         <Route path="/student/request" element={<ProtectedDashboard role="STUDENT"><NewRequest /></ProtectedDashboard>} />
         <Route path="/student/verification" element={<Verification />} />
@@ -105,7 +107,8 @@ function App() {
         <Route path="/register/student" element={<Navigate to="/register?role=STUDENT&start=1" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/onboarding" element={<Onboarding />} />
-      </Routes></HashRouter>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes></BrowserRouter>
     </Suspense></AuthProvider></BrandingProvider>;
 }
 

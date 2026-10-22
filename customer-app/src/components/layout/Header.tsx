@@ -10,6 +10,7 @@ export const Header = () => {
   const branding = useBranding();
   const name = profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || 'مستخدم';
   const complete = isProfileComplete(profile);
+  const isAuthorizedAdmin = Boolean(profile && profile.status === 'VERIFIED' && ['ADMIN', 'SUPER_ADMIN', 'STAFF'].includes(profile.role));
   const close = () => setOpen(false);
   const logout = () => { void signOut(); close(); };
 
@@ -43,6 +44,7 @@ export const Header = () => {
         </> : <>
           <span className="header-greeting">أهلاً، {name}</span>
           <Link className="header-login" to={complete ? '/dashboard' : '/onboarding'}>{complete ? 'حسابي' : 'أكمل حسابك'}</Link>
+          {isAuthorizedAdmin && <a className="header-login" href="/admin/">لوحة الإدارة</a>}
           <button className="header-logout" onClick={logout}>تسجيل الخروج</button>
         </>}
         <button className="menu-button" onClick={() => setOpen((current) => !current)} aria-label="القائمة">{open ? <X size={21} /> : <Menu size={21} />}</button>
