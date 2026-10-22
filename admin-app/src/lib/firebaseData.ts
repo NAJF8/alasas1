@@ -65,5 +65,5 @@ export const firebaseData: any = {
     };
   },
   rpc,
-  functions: { invoke: async <T = any>(name: string, options?: { body?: unknown }) => name === 'admin-invite-manager' ? rpc<T>('admin_create_manager_invitation', options?.body) : rpc<T>(name, options?.body) },
+  functions: { invoke: async <T = any>(name: string, options?: { body?: unknown }) => { const routes: Record<string, string> = { 'admin-invite-manager': '/api/manager-invite', 'registration-admin': '/api/registration-admin', 'case-approval': '/api/case-approval', 'student-request-review': '/api/student-request-review', match: '/api/match', 'complete-treatment': '/api/complete-treatment' }; return routes[name] ? { data: await callBackend<T>(routes[name], options?.body), error: null } : rpc<T>(name, options?.body); } },
 };
