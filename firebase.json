@@ -18,7 +18,6 @@
       "target": "unified",
       "public": "dist-deploy",
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-      "redirects": [{ "source": "/admin", "destination": "/admin/", "type": 301 }],
       "rewrites": [
         { "source": "/admin/**", "destination": "/admin/index.html" },
         { "source": "**", "destination": "/index.html" }
