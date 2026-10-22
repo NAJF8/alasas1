@@ -10,7 +10,6 @@ ALLOWED_ORIGINS = "https://al-asas-dental-staging.web.app,https://al-asas-dental
 # Add this only with `wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON`.
 # Never commit the service-account JSON or a private key.
 
-[[r2_buckets]]
-binding = "MEDICAL_IMAGES"
-bucket_name = "alasas-dental-medical-images-staging"
-preview_bucket_name = "alasas-dental-medical-images-staging-preview"
+# R2 is intentionally disabled for this Staging release. The Worker keeps
+# image routes fail-closed with R2_NOT_CONFIGURED until a separately approved
+# storage path exists; no paid bucket is provisioned here.

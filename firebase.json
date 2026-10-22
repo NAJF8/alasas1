@@ -1,4 +1,10 @@
 {
+  "auth": {
+    "authorizedDomains": ["localhost", "al-asas-dental-staging.web.app", "al-asas-dental-admin.web.app"],
+    "providers": {
+      "emailPassword": true
+    }
+  },
   "firestore": {
     "rules": "firestore.rules"
   },
