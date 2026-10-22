@@ -1,4 +1,4 @@
-import { AlertCircle, Check, Download, Filter, Loader2, Pencil, Plus, RefreshCw, Search, X } from 'lucide-react';
+import { AlertCircle, Check, CheckCircle2, Download, Filter, Loader2, Pencil, Plus, RefreshCw, Search, X, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { AdminLayout } from '../components/layout/AdminLayout';
@@ -14,7 +14,7 @@ const configs: Record<string, PageConfig> = {
   '/patients': { title: 'إدارة المرضى', description: 'ملفات المرضى الفعلية في المنصة.', table: 'profiles', filter: 'PATIENT', columns: [{ key: 'full_name', label: 'المريض' }, { key: 'phone', label: 'الهاتف' }, { key: 'status', label: 'الحالة' }, { key: 'created_at', label: 'تاريخ التسجيل' }] },
   '/students': { title: 'طلاب طب الأسنان', description: 'ملفات الطلاب وحالة الحساب الفعلية. حالة التوثيق المنفصلة غير موجودة في مخطط Production الحالي.', table: 'profiles', filter: 'STUDENT', columns: [{ key: 'full_name', label: 'الطالب' }, { key: 'stage', label: 'المرحلة' }, { key: 'university_id', label: 'الجامعة' }, { key: 'status', label: 'الحساب' }, { key: 'created_at', label: 'تاريخ التسجيل' }] },
   '/cases': { title: 'حالات المرضى', description: 'الحالات المسجلة في قاعدة البيانات.', table: 'patient_cases', columns: [{ key: 'case_number', label: 'رقم الحالة' }, { key: 'patient_id', label: 'معرف المريض' }, { key: 'status', label: 'الحالة' }, { key: 'created_at', label: 'تاريخ الإنشاء' }] },
-  '/requests': { title: 'طلبات الطلاب', description: 'الطلبات السريرية المسجلة فعلياً.', table: 'student_requests', columns: [{ key: 'request_number', label: 'رقم الطلب' }, { key: 'student_id', label: 'معرف الطالب' }, { key: 'status', label: 'الحالة' }, { key: 'created_at', label: 'تاريخ الإنشاء' }] },
+  '/requests': { title: 'طلبات الطلاب', description: 'الطلبات السريرية المسجلة فعلياً.', table: 'student_requests', columns: [{ key: 'request_number', label: 'رقم الطلب' }, { key: 'student_id', label: 'معرف الطالب' }, { key: 'status', label: 'الحالة' }, { key: 'matched_case_id', label: 'الحالة المطابقة' }, { key: 'created_at', label: 'تاريخ الإنشاء' }] },
   '/matches': { title: 'المطابقات', description: 'سجلات المطابقة الفعلية.', table: 'matches', columns: [{ key: 'id', label: 'المطابقة' }, { key: 'patient_case_id', label: 'الحالة' }, { key: 'student_request_id', label: 'الطلب' }, { key: 'status', label: 'الحالة' }] },
   '/appointments': { title: 'إدارة المواعيد', description: 'المواعيد المسجلة فعلياً.', table: 'appointments', columns: [{ key: 'id', label: 'الموعد' }, { key: 'patient_id', label: 'المريض' }, { key: 'student_id', label: 'الطالب' }, { key: 'status', label: 'الحالة' }] },
   '/notifications': { title: 'الإشعارات', description: 'الإشعارات المخزنة في المنصة.', table: 'notifications', columns: [{ key: 'title', label: 'العنوان' }, { key: 'user_id', label: 'المستخدم' }, { key: 'is_read', label: 'مقروء' }, { key: 'created_at', label: 'التاريخ' }] },
@@ -68,28 +68,37 @@ const GenericManagementPage = ({ path }: { path: string }) => {
   const [message, setMessage] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [retry, setRetry] = useState(0);
+  const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const [matchCase, setMatchCase] = useState<Row | null>(null);
+  const [verifiedRequests, setVerifiedRequests] = useState<Row[]>([]);
+  const [selectedRequestId, setSelectedRequestId] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true); setError(null);
+    const selected = Array.from(new Set(['id', ...config.columns.map((column) => column.key)])).join(',');
+    const result = config.table === 'profiles'
+      ? await (() => {
+        let request = supabase.from('profiles').select('*').limit(100);
+        if (config.filter === 'PATIENT' || config.filter === 'STUDENT') request = request.eq('role', config.filter);
+        if (config.filter === 'ADMIN_ROLES') request = request.in('role', ['ADMIN', 'SUPER_ADMIN', 'STAFF']);
+        return request;
+      })()
+      : await (() => {
+        let request = supabase.from(config.table).select(selected).limit(100);
+        if (config.table !== 'audit_logs' && config.table !== 'notifications') request = request.order('created_at', { ascending: false });
+        if (config.filter === 'PATIENT' || config.filter === 'STUDENT') request = request.eq('role', config.filter);
+        if (config.filter === 'ADMIN_ROLES') request = request.in('role', ['ADMIN', 'SUPER_ADMIN', 'STAFF']);
+        return request;
+      })();
+    if (result.error) setError(result.error.message); else setRows((result.data || []) as unknown as Row[]);
+    setLoading(false);
+  }, [config]);
 
   useEffect(() => {
     let active = true;
-    const load = async () => {
-      setLoading(true); setError(null); setMessage(null);
-      const selected = Array.from(new Set(['id', ...config.columns.map((column) => column.key)])).join(',');
-      const result = config.table === 'profiles'
-        ? await supabase.rpc('list_profiles_for_admin')
-        : await (() => {
-          let request = supabase.from(config.table).select(selected).limit(100);
-          if (config.table !== 'audit_logs' && config.table !== 'notifications') request = request.order('created_at', { ascending: false });
-          if (config.filter === 'PATIENT' || config.filter === 'STUDENT') request = request.eq('role', config.filter);
-          if (config.filter === 'ADMIN_ROLES') request = request.in('role', ['ADMIN', 'SUPER_ADMIN', 'STAFF']);
-          return request;
-        })();
-      if (!active) return;
-      if (result.error) setError(result.error.message); else setRows((result.data || []) as unknown as Row[]);
-      setLoading(false);
-    };
-    void load();
+    void load().then(() => { if (!active) return; setMessage(null); });
     return () => { active = false; };
-  }, [config, retry]);
+  }, [config, retry, load]);
 
   const filtered = useMemo(() => rows.filter((row) => {
     const roleMatches = config.filter === 'PATIENT' || config.filter === 'STUDENT'
@@ -99,7 +108,33 @@ const GenericManagementPage = ({ path }: { path: string }) => {
         : true;
     return roleMatches && (!query || Object.values(row).some((value) => displayValue(value).toLocaleLowerCase().includes(query.toLocaleLowerCase())));
   }), [rows, query, config]);
-  const decisionBlocked = ['/students', '/cases', '/requests', '/matches'].includes(path);
+  const decisionBlocked = ['/cases', '/requests', '/matches'].includes(path);
+  const invokeAction = async (key: string, endpoint: string, body: Record<string, unknown>, expectedStatus: string) => {
+    setActionBusy(key); setError(null); setMessage(null);
+    const result = await supabase.functions.invoke(endpoint, { body });
+    if (result.error || result.data?.status !== expectedStatus) setError(result.error?.message || `لم يؤكد Worker العملية (${expectedStatus}).`);
+    else { setMessage('تم تنفيذ العملية من Worker والتحقق من Readback.'); await load(); }
+    setActionBusy(null);
+  };
+  const decide = async (row: Row, action: 'approve' | 'reject') => {
+    const reason = action === 'reject' ? window.prompt('سبب الرفض (اختياري):', '') : null;
+    if (action === 'reject' && reason === null) return;
+    const id = String(row.id || '');
+    if (path === '/cases') return invokeAction(id, 'case-approval', { action, case_id: id, reason: reason || undefined }, action === 'reject' ? 'REJECTED' : 'APPROVED');
+    return invokeAction(id, 'student-request-review', { action, request_id: id, reason: reason || undefined }, action === 'reject' ? 'REJECTED' : 'VERIFIED');
+  };
+  const openMatch = async (row: Row) => {
+    setActionBusy(`match-load-${String(row.id)}`); setError(null);
+    const result = await supabase.from('student_requests').select('id,request_number,student_id,status').eq('status', 'VERIFIED').limit(100);
+    if (result.error) setError(result.error.message); else { setMatchCase(row); setVerifiedRequests((result.data || []) as Row[]); setSelectedRequestId(''); }
+    setActionBusy(null);
+  };
+  const createMatch = async () => {
+    if (!matchCase?.id || !selectedRequestId) return;
+    await invokeAction(`match-${String(matchCase.id)}`, 'match', { case_id: String(matchCase.id), request_id: selectedRequestId }, 'MATCHED');
+    setMatchCase(null); setSelectedRequestId('');
+  };
+  const completeTreatment = async (row: Row) => invokeAction(String(row.id), 'complete-treatment', { match_id: String(row.id) }, 'COMPLETED');
   const csv = async () => {
     const text = [config.columns.map((column) => column.label).join(','), ...filtered.map((row) => config.columns.map((column) => JSON.stringify(displayValue(row[column.key], column.key))).join(','))].join('\\n');
     if (navigator.clipboard) await navigator.clipboard.writeText(text);
@@ -108,9 +143,9 @@ const GenericManagementPage = ({ path }: { path: string }) => {
   const clearSearch = () => { setQuery(''); setMessage('تم مسح البحث الحالي.'); };
 
   return <AdminLayout><div className="management-heading"><div><span className="dashboard-eyebrow">الإدارة والتشغيل</span><h1>{config.title}</h1><p>{config.description}</p></div></div>
-    {decisionBlocked && <div className="admin-notice"><AlertCircle size={17} /><span><b>الموافقة متوقفة مؤقتاً</b><small>حفظ القرار والسبب وصاحب القرار وتاريخه يحتاج Phase 2 Migration غير مطبقة على Production. هذه الصفحة للقراءة فقط حالياً.</small></span></div>}
+    {decisionBlocked && <div className="admin-notice"><AlertCircle size={17} /><span><b>الإجراءات محكومة بالـWorker</b><small>كل اعتماد أو رفض أو مطابقة أو إكمال علاج يرسل JWT إلى Worker موثق، ثم تُعاد قراءة النتيجة من Firestore.</small></span></div>}
     {message && <div className="settings-inline-success"><Check size={15} /> {message}</div>}
-    <section className="admin-panel management-panel"><div className="management-toolbar"><div className="table-search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ابحث في النتائج..." /></div><button onClick={() => setRetry((value) => value + 1)}><RefreshCw size={15} /> تحديث</button><button onClick={clearSearch} disabled={!query}><Filter size={16} /> مسح البحث</button><button onClick={() => void csv()}><Download size={16} /> تصدير</button></div>{loading ? <div className="empty-panel"><Loader2 className="animate-spin" /> جارٍ تحميل البيانات…</div> : error ? <div className="admin-error"><strong>تعذر تحميل هذا القسم</strong><span>{error}</span><button onClick={() => setRetry((value) => value + 1)}>إعادة المحاولة</button></div> : filtered.length === 0 ? <div className="empty-panel">لا توجد سجلات مطابقة حالياً.</div> : <div className="table-scroll"><table><thead><tr>{config.columns.map((column) => <th key={column.key}>{column.label}</th>)}<th>الإجراءات</th></tr></thead><tbody>{filtered.map((row, index) => <tr key={String(row.id || index)}>{config.columns.map((column) => <td key={column.key}>{displayValue(row[column.key], column.key)}</td>)}<td><span className="text-slate-400">قراءة فقط</span></td></tr>)}</tbody></table></div>}<div className="table-footer"><span>عرض {filtered.length} نتيجة من البيانات الحقيقية</span><span>الحد الأقصى المعروض 100</span></div></section></AdminLayout>;
+    <section className="admin-panel management-panel"><div className="management-toolbar"><div className="table-search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ابحث في النتائج..." /></div><button onClick={() => setRetry((value) => value + 1)}><RefreshCw size={15} /> تحديث</button><button onClick={clearSearch} disabled={!query}><Filter size={16} /> مسح البحث</button><button onClick={() => void csv()}><Download size={16} /> تصدير</button></div>{loading ? <div className="empty-panel"><Loader2 className="animate-spin" /> جارٍ تحميل البيانات…</div> : error ? <div className="admin-error"><strong>تعذر تحميل هذا القسم</strong><span>{error}</span><button onClick={() => setRetry((value) => value + 1)}>إعادة المحاولة</button></div> : filtered.length === 0 ? <div className="empty-panel">لا توجد سجلات مطابقة حالياً.</div> : <div className="table-scroll"><table><thead><tr>{config.columns.map((column) => <th key={column.key}>{column.label}</th>)}<th>الإجراءات</th></tr></thead><tbody>{filtered.map((row, index) => <tr key={String(row.id || index)}>{config.columns.map((column) => <td key={column.key}>{displayValue(row[column.key], column.key)}</td>)}<td className="row-actions">{path === '/cases' && row.status === 'PENDING' && <><button className="row-action" disabled={actionBusy === String(row.id)} onClick={() => void decide(row, 'approve')}><CheckCircle2 size={13} /> موافقة</button><button className="row-action" disabled={actionBusy === String(row.id)} onClick={() => void decide(row, 'reject')}><XCircle size={13} /> رفض</button></>}{path === '/cases' && row.status === 'APPROVED' && <button className="row-action" disabled={actionBusy === `match-load-${String(row.id)}`} onClick={() => void openMatch(row)}>إنشاء مطابقة</button>}{path === '/requests' && row.status === 'PENDING' && <><button className="row-action" disabled={actionBusy === String(row.id)} onClick={() => void decide(row, 'approve')}><CheckCircle2 size={13} /> موافقة</button><button className="row-action" disabled={actionBusy === String(row.id)} onClick={() => void decide(row, 'reject')}><XCircle size={13} /> رفض</button></>}{path === '/matches' && row.status === 'MATCHED' && <button className="row-action" disabled={actionBusy === String(row.id)} onClick={() => void completeTreatment(row)}>إكمال العلاج</button>}{!['/cases', '/requests', '/matches'].includes(path) && <span className="text-slate-400">قراءة فقط</span>}</td></tr>)}</tbody></table></div>}<div className="table-footer"><span>عرض {filtered.length} نتيجة من البيانات الحقيقية</span><span>الحد الأقصى المعروض 100</span></div></section>{matchCase && <div className="modal-backdrop"><form className="admin-modal" onSubmit={(event) => { event.preventDefault(); void createMatch(); }}><div className="panel-heading"><h2>إنشاء مطابقة للحالة {displayValue(matchCase.case_number || matchCase.id)}</h2><button type="button" onClick={() => setMatchCase(null)}><X size={18} /></button></div><label>طلب الطالب المعتمد<select required value={selectedRequestId} onChange={(event) => setSelectedRequestId(event.target.value)}><option value="">اختر طلباً</option>{verifiedRequests.map((request) => <option key={String(request.id)} value={String(request.id)}>{displayValue(request.request_number || request.id)} — {displayValue(request.student_id)}</option>)}</select></label>{verifiedRequests.length === 0 && <div className="empty-panel">لا توجد طلبات طلاب معتمدة للمطابقة.</div>}<div className="modal-actions"><button type="button" onClick={() => setMatchCase(null)}>إلغاء</button><button className="dashboard-action" disabled={!selectedRequestId || actionBusy === `match-${String(matchCase.id)}`}>{actionBusy === `match-${String(matchCase.id)}` ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />} إنشاء المطابقة</button></div></form></div>}</AdminLayout>;
 };
 
 export const ManagementPage = ({ path }: { path: string }) => path === '/universities' ? <UniversityPage /> : path === '/provinces' ? <ProvincePage /> : <GenericManagementPage path={path} />;
