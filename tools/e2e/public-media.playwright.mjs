@@ -172,6 +172,13 @@ const runAuthenticatedFlow = async (context, tempDir) => {
   const preview = page.locator('img.settings-image-preview').first();
   await preview.waitFor({ state: 'visible' });
   report('MEDIA_PREVIEW', (await preview.getAttribute('src'))?.startsWith(uploadBody.public_url) ? 'PASS' : 'FAIL');
+  // Upload updates the branding preview immediately, while the media library
+  // list is refreshed from Firestore on mount. Reload before selecting the
+  // replacement input so the new asset is present in the library DOM.
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByRole('heading', { name: 'الإعدادات', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'الصور والشعارات', exact: true }).click();
+  await page.getByRole('heading', { name: 'مكتبة الأصول العامة' }).waitFor();
   const article = page.locator('article').filter({ has: page.locator('img[src^="https://raw.githubusercontent.com/"]') }).last();
   const replaceInput = article.locator('input[type="file"]');
   const replaceResponse = page.waitForResponse((response) => response.url() === `${WORKER_URL}/api/public-media` && response.request().method() === 'POST');
