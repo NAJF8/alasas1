@@ -13,7 +13,27 @@ const statusLabel: Record<string, string> = { NEW: 'بانتظار المراج�
 export const PatientDashboard = () => {
   const { user, loading } = useAuth();
   const [cases, setCases] = useState<CaseRow[]>([]); const [notifications, setNotifications] = useState<NotificationRow[]>([]); const [appointments, setAppointments] = useState<AppointmentRow[]>([]); const [busy, setBusy] = useState(true); const [error, setError] = useState<string | null>(null);
-  const load = useCallback(async () => { if (!user) return; setBusy(true); setError(null); const [caseResult, notificationResult, appointmentResult] = await Promise.all([supabase.from('patient_cases').select('id, case_number, description, status, created_at').eq('patient_id', user.id).order('created_at', { ascending: false }), supabase.from('notifications').select('id, title, message, is_read, created_at').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10), supabase.from('appointments').select('id, appointment_date, location_name, status, notes').eq('patient_id', user.id).order('appointment_date', { ascending: true })]); const firstError = caseResult.error || notificationResult.error || appointmentResult.error; if (firstError) setError(firstError.message); setCases((caseResult.data || []) as CaseRow[]); setNotifications((notificationResult.data || []) as NotificationRow[]); setAppointments((appointmentResult.data || []) as AppointmentRow[]); setBusy(false); }, [user]);
+  const load = useCallback(async () => {
+    if (!user) return;
+    setBusy(true); setError(null);
+    // Keep owner filters server-side, then sort locally so the dashboard remains
+    // usable while optional composite indexes are still building in Staging.
+    const [caseResult, notificationResult] = await Promise.all([
+      supabase.from('patient_cases').select('id, case_number, description, status, created_at').eq('patient_id', user.id),
+      supabase.from('notifications').select('id, title, message, is_read, created_at').eq('user_id', user.id).limit(10),
+    ]);
+    const firstError = caseResult.error || notificationResult.error;
+    if (firstError) setError(firstError.message);
+    const byDate = (left: any, right: any, field: string, ascending = false) => {
+      const a = Date.parse(String(left?.[field] || '')) || 0;
+      const b = Date.parse(String(right?.[field] || '')) || 0;
+      return ascending ? a - b : b - a;
+    };
+    setCases(([...(caseResult.data || [])] as CaseRow[]).sort((a, b) => byDate(a, b, 'created_at')));
+    setNotifications(([...(notificationResult.data || [])] as NotificationRow[]).sort((a, b) => byDate(a, b, 'created_at')));
+    setAppointments([]);
+    setBusy(false);
+  }, [user]);
   useEffect(() => { void load(); }, [load]);
   const markRead = async (id: string) => { const { error: updateError } = await supabase.from('notifications').update({ is_read: true, read_at: new Date().toISOString() }).eq('id', id).eq('user_id', user?.id || ''); if (!updateError) setNotifications((current) => current.map((item) => item.id === id ? { ...item, is_read: true } : item)); };
   const whatsapp = import.meta.env.VITE_ADMIN_WHATSAPP as string | undefined; const whatsappUrl = whatsapp ? `https://wa.me/${whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent('مرحباً، أحتاج متابعة طلبي في منصة أسنان الأساس.')}` : null;

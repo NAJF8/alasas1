@@ -1,46 +1,48 @@
-# AL ASAS Dental Staging E2E completion report — 2026-10-22
+# AL ASAS Dental Staging E2E report — 2026-10-22
 
-Scope: `codex/dental-staging-readiness`, starting at `25368fd785d8edc37a0287ee8e14b1dcbb75e04f`. Production, `main`, Blaze/Billing, and R2 were not changed.
+Scope: exact clean worktree from commit `a4185c8`; Staging only. Production, `main`, Blaze/Billing, and R2 were not changed.
 
-## Implemented
+## Changes
 
-- Admin cases, student requests, matches, and treatment completion now use authenticated Worker routes for decisions; the Admin client does not write approval/status/match/audit documents directly through the Firestore SDK.
-- Case approval/rejection, student-request approval/rejection, match creation, idempotent match response, and treatment completion refresh the Admin table after the Worker response for Firestore readback.
-- `/users`, `/patients`, `/students`, and `/admins` no longer call the missing `list_profiles_for_admin` RPC; they read Firebase profiles under the existing Firestore manager rules.
-- Worker `/health` exposes a non-secret `releaseSha` fingerprint for the Staging artifact.
+- Fixed Customer profile loading to read `profiles/{uid}` directly instead of an unauthorized collection query.
+- Enabled the deployed Customer registration backend flag for Staging.
+- Added the required Firestore composites for patient cases, student requests, notifications, and appointments.
+- Removed the Patient dashboard's unauthorized appointments read; appointments remain manager-only and the UI shows a truthful empty state.
+- Stored test credentials only outside Git at `C:\Users\MSI\AppData\Local\Temp\alasas-dental-staging-e2e-20261022.json`.
 
-## Evidence
+## Browser and live Staging evidence
 
-- Admin build: PASS (`npm run build`); existing lint warnings only, no lint error.
-- Customer build: PASS (`npm run build`); existing lint warnings only, no lint error.
-- Worker typecheck/tests: PASS (`npm run typecheck`, `npm test`, 3/3 tests).
-- Customer registration tests: PASS (`registration security matrix`, `registration flow validation matrix`).
-- Admin display regression: PASS.
-- Local rendered QA: PASS on Desktop 1440x900 and Mobile 390x844 for Customer/Admin; meaningful DOM, no framework overlay, no console errors, no horizontal overflow; Customer login navigation exercised.
-- Staging rendered QA: PASS on Desktop/Mobile for Customer/Admin; no console errors, no horizontal overflow, no Supabase runtime requests.
-- Staging Worker health: PASS — `productionWrites:false`, `releaseSha:85283ec`.
-- Staging Worker auth guards: PASS — missing token `401 AUTH_REQUIRED`, malformed token `401 INVALID_TOKEN`, expired-token payload `401 INVALID_TOKEN`.
-- Staging Hosting deploy: PASS — Customer and Admin releases completed.
-- Staging Worker deploy: PASS — version `96c40ab9-a15c-4d76-b182-afffbb1bb48c`.
+- Patient registration: PASS. Independent phone/password account; personal data, gender, DOB/age, phone/WhatsApp, province/area, university, and terms were submitted through Customer. Admin approval showed `تمت الموافقة والتحقق من قراءة القرار.`
+- Patient case: PASS. Independent patient created a text-only case with age 30, symptoms, availability, and one university; after refresh the Customer dashboard showed one `PENDING` case. No image/R2 path was used.
+- Student registration: PASS. Independent phone/password account; name, gender, province, WhatsApp, basic university, stage FOURTH, one preferred university, and terms were submitted. Admin approval read back as verified.
+- Student request: PASS at the authenticated Worker/backend boundary. The independent student ID token created request `REQ-MVJ1UKWC`; Firestore readback initially showed `PENDING`, then Admin approved it and the Admin table showed `VERIFIED`.
+- Approval, matching, completion: PASS. Admin approved case `CASE-MVJ1P45V`, matched it to `REQ-MVJ1UKWC`, and completed treatment. Firestore readback showed the case `MATCHED`, request `MATCHED`, and match `COMPLETED`.
+- Duplicate matching: NOT_VERIFIED as a second live click. The resulting match set contained exactly one match for the case; the Worker source and tests cover idempotent `match_keys`, but a second authenticated Admin invocation was not performed.
+- Student search UI: NOT_VERIFIED. The newly approved student session reached the verification route once, but a later fresh Customer session remained on the app authentication loading state; no PASS is claimed for the rendered search page.
+- Admin identity: PASS for the existing Staging Admin session. The session displayed `مدير النظام`; no Super Admin role or permissions were changed.
 
-## Gate matrix
+## Security and infrastructure evidence
 
-| Gate | Result | Boundary |
-| --- | --- | --- |
-| `ADMIN_ACTIONS_E2E` | NOT_VERIFIED | UI wiring and local Worker guards pass; no authenticated Admin identity was used for a Firestore mutation/readback. |
-| `PATIENT_REGISTRATION` | NOT_VERIFIED | Validation tests pass; no separate Staging test account completed the full authenticated flow. |
-| `STUDENT_REGISTRATION` | NOT_VERIFIED | Same boundary as Patient registration. |
-| `CASE_CREATION` | NOT_VERIFIED | Requires an authenticated Patient and live Worker/Firestore readback. |
-| `STUDENT_SEARCH` | NOT_VERIFIED | Requires an authenticated Student and approved live case. |
-| `STUDENT_REQUEST` | NOT_VERIFIED | Requires an authenticated Student and live request readback. |
-| `ADMIN_APPROVAL` | NOT_VERIFIED | Worker route exists and is protected; no live Admin decision was executed. |
-| `MATCHING` | NOT_VERIFIED | Idempotent transaction path exists; no live pair was matched twice. |
-| `CASE_COMPLETION` | NOT_VERIFIED | Worker route exists and is protected; no live match was completed. |
-| `CROSS_USER_ISOLATION` | NOT_VERIFIED | Full two-session Patient/Student isolation was not executed in this run. |
-| `FIRESTORE_READBACK` | NOT_VERIFIED | No live test data was created, so no mutation readback can be claimed. |
-| `STAGING_DEPLOY` | PASS | Hosting and Worker Staging deployments completed; release fingerprint and health checked. |
-| `PRODUCTION_READY` | BLOCKED | Full authenticated lifecycle and multi-user isolation remain open; Google human sessions and R2/image path are intentionally not required for the UI repair but are required for a full release decision. |
+- Worker health: PASS — `environment: staging`, `productionWrites: false`, `releaseSha: 4ff47d8`.
+- Worker guards: PASS — missing token `401`; malformed token `401`.
+- Firestore indexes: PASS — the four newly required composites reached `READY`.
+- Universities: PARTIAL — two real active dental universities were available, so the UI/backend one-to-four cap was exercised with one selection; four distinct live universities were not available and no fake visible universities were inserted.
+- R2/image upload: BLOCKED — R2 is intentionally disabled in Staging. The permitted text-only case path passed.
+- Full two-concurrent-session cross-user isolation: NOT_VERIFIED. Rules and Worker guard tests pass locally, but a separate concurrent Patient/Student browser session was not completed in this run.
 
-## Required next human-controlled step
+## Local verification
 
-Provide or authorize three separate non-human Firebase Auth Staging test accounts (PATIENT, STUDENT, ADMIN) using supported non-Google sign-in, or explicitly open the two required Google sessions. Then execute the lifecycle with fresh tokens and record Firestore readback plus Audit Logs. Do not reuse real-person accounts or create fake Google OAuth sessions.
+- Customer build: PASS.
+- Customer lint: PASS with existing non-blocking React warnings.
+- Customer registration security and flow tests: PASS.
+- Admin build: PASS.
+- Admin lint: PASS with existing non-blocking React warnings.
+- Admin management display regression: PASS.
+- Worker typecheck: PASS.
+- Worker tests: PASS, 5/5.
+
+## Release boundary
+
+Customer Hosting was rebuilt and deployed to Firebase Staging after the fixes. Admin was exercised as the existing deployed Staging artifact; no Admin source change required a redeploy. Worker source was unchanged in this run, so its verified live release remains `4ff47d8`. Production/main/Blaze/R2 remain untouched.
+
+The complete authenticated lifecycle is proven through Patient registration, case creation, Admin decisions, independent Student request creation, matching, completion, and Firestore readback. `PRODUCTION_READY` remains BLOCKED because Student search UI, duplicate invocation, and full concurrent cross-user browser isolation are not all independently proven, and R2 is unavailable by design.
