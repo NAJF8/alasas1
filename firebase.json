@@ -2,7 +2,11 @@
   "auth": {
     "authorizedDomains": ["localhost", "al-asas-dental-staging.web.app", "al-asas-dental-admin.web.app"],
     "providers": {
-      "emailPassword": true
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "AL ASAS DENTAL",
+        "supportEmail": "alasastech0@gmail.com"
+      }
     }
   },
   "firestore": {

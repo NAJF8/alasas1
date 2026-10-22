@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { configurationError } from '../lib/supabase';
+import { configurationError } from '../lib/firebase';
 import { Activity, AlertCircle, Globe2, Loader2, ShieldCheck, ShieldX } from 'lucide-react';
 
 export const Login = () => {
@@ -26,5 +26,5 @@ export const Login = () => {
     catch { setError('حدث خطأ غير متوقع. يرجى المحاولة لاحقاً.'); setSubmitting(false); }
   };
 
-  return <main className="admin-auth-page" dir="rtl"><div className="admin-auth-orb orb-a" /><div className="admin-auth-orb orb-b" /><div className="admin-auth-head"><div className="admin-auth-mark"><Activity size={30} /></div><span className="admin-auth-kicker">أسنان الأساس</span><h1>مساحة الإدارة الآمنة</h1><p>لوحة متابعة الحالات السريرية والمستخدمين والجامعات.</p></div><section className="admin-auth-card"><div className="admin-auth-card-heading"><ShieldCheck size={20} /><div><h2>تسجيل الدخول للإدارة</h2><p>الوصول متاح للحسابات الإدارية الموثقة فقط.</p></div></div>{error && <div className="admin-auth-message error"><AlertCircle size={18} /><span>{error}</span></div>}{configurationError && <div className="admin-auth-message warning"><AlertCircle size={18} /><span>{configurationError}</span></div>}<button type="button" onClick={() => void handleLogin()} disabled={submitting} className="admin-auth-submit">{submitting ? <Loader2 className="animate-spin" size={19} /> : <Globe2 size={19} />} تسجيل الدخول باستخدام Google</button><small className="admin-auth-footnote">تخضع كل صلاحية للدور والحالة في ملف Supabase الموثق.</small></section></main>;
+  return <main className="admin-auth-page" dir="rtl"><div className="admin-auth-orb orb-a" /><div className="admin-auth-orb orb-b" /><div className="admin-auth-head"><div className="admin-auth-mark"><Activity size={30} /></div><span className="admin-auth-kicker">أسنان الأساس</span><h1>مساحة الإدارة الآمنة</h1><p>لوحة متابعة الحالات السريرية والمستخدمين والجامعات.</p></div><section className="admin-auth-card"><div className="admin-auth-card-heading"><ShieldCheck size={20} /><div><h2>تسجيل الدخول للإدارة</h2><p>الوصول متاح للحسابات الإدارية الموثقة فقط.</p></div></div>{error && <div className="admin-auth-message error"><AlertCircle size={18} /><span>{error}</span></div>}{configurationError && <div className="admin-auth-message warning"><AlertCircle size={18} /><span>{configurationError}</span></div>}<button type="button" onClick={() => void handleLogin()} disabled={submitting} className="admin-auth-submit">{submitting ? <Loader2 className="animate-spin" size={19} /> : <Globe2 size={19} />} تسجيل الدخول باستخدام Google</button><small className="admin-auth-footnote">تخضع كل صلاحية للدور والحالة في ملف Firebase الموثق.</small></section></main>;
 };

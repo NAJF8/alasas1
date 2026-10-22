@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { Header } from '../../components/layout/Header';
 import { useAuth } from '../../context/AuthContext';
-import { supabase } from '../../lib/supabase';
+import { firebaseData as supabase } from '../../lib/firebaseData';
 
 type CaseRow = { id: string; case_number: string; description: string; status: string; created_at: string };
 type NotificationRow = { id: string; title: string; message: string; is_read: boolean; created_at: string };

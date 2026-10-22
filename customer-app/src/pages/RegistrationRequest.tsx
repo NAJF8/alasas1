@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { getActiveProvinces, getActiveUniversities, type ProvinceOption, type UniversityOption } from '../lib/referenceData';
 import { normalizeIraqiPhone } from '../lib/phoneAuth';
 import { isRegistrationRole, isStrongRegistrationPassword, normalizeRegistrationPassword, readRegistrationRole, registrationPasswordStrength, writeRegistrationRole, type RegistrationRole } from '../lib/registrationFlow';
-import { supabase } from '../lib/supabase';
+import { firebaseData as supabase } from '../lib/firebaseData';
 
 type AreaOption = { id: string; name_ar: string };
 type Values = {

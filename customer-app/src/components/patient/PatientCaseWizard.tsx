@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { callBackend } from '../../lib/firebaseData';
-import { supabase } from '../../lib/supabase';
+import { firebaseData as supabase } from '../../lib/firebaseData';
 import { getActiveProvinces, getActiveUniversities } from '../../lib/referenceData';
 
 const STEPS = ['المعلومات الأساسية', 'وصف المشكلة', 'الأعراض', 'الصور', 'التوفر والجامعات', 'مراجعة وإرسال'];

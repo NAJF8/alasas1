@@ -19,4 +19,4 @@ void setPersistence(auth, browserLocalPersistence);
 export const configurationError = null;
 export const getOAuthRedirectUrl = () => new URL(import.meta.env.BASE_URL || '/', window.location.origin).toString();
 
-export const apiBaseUrl = (import.meta.env.VITE_FIREBASE_BACKEND_URL || '').replace(/\/$/, '');
+export const apiBaseUrl = (import.meta.env.VITE_FIREBASE_BACKEND_URL || 'https://alasas-dental-staging-worker.coffee101.workers.dev').replace(/\/$/, '');

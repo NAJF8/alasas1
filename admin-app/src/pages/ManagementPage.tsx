@@ -4,7 +4,7 @@ import type { FormEvent } from 'react';
 import { AdminLayout } from '../components/layout/AdminLayout';
 import { useAuth } from '../context/AuthContext';
 import { displayValue } from '../lib/displayValue';
-import { supabase } from '../lib/supabase';
+import { firebaseData as supabase } from '../lib/firebaseData';
 
 type Column = { key: string; label: string };
 type Row = Record<string, unknown> & { id?: string };

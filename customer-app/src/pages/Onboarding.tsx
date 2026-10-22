@@ -2,7 +2,7 @@ import { ArrowLeft, ArrowRight, Check, CheckCircle2, Loader2, MapPin, Save, Univ
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { clearAuthIntent, isProfileComplete, readAuthIntent, useAuth, type CustomerRole } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
+import { firebaseData as supabase } from '../lib/firebaseData';
 import { getActiveProvinces, getActiveUniversities } from '../lib/referenceData';
 
 type Option = { id: string; name_ar: string; province_id?: string };

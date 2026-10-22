@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AdminLayout } from '../components/layout/AdminLayout';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
+import { firebaseData as supabase } from '../lib/firebaseData';
 
 type Branding = {
   id?: string; platform_arabic_name: string; platform_english_name: string; short_name: string; footer_text: string;

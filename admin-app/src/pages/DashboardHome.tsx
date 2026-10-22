@@ -3,7 +3,7 @@ import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer,
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AdminLayout } from '../components/layout/AdminLayout';
-import { supabase } from '../lib/supabase';
+import { firebaseData as supabase } from '../lib/firebaseData';
 
 const stats = [{ label: 'الحالات النشطة', key: 'cases', icon: FileHeart, tone: 'blue' }, { label: 'طلاب طب الأسنان', key: 'students', icon: Activity, tone: 'purple' }, { label: 'المرضى', key: 'patients', icon: UserRound, tone: 'teal' }, { label: 'إجمالي المستخدمين', key: 'users', icon: UsersRound, tone: 'orange' }] as const;
 const colors = { patients: '#18ae88', students: '#517ff0', admins: '#f29a31', other: '#9367d8' };

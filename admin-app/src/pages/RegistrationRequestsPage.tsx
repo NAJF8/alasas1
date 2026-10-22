@@ -1,7 +1,7 @@
 import { AlertCircle, CheckCircle2, Clock3, ExternalLink, Loader2, RefreshCw, ShieldCheck, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { AdminLayout } from '../components/layout/AdminLayout';
-import { supabase } from '../lib/supabase';
+import { firebaseData as supabase } from '../lib/firebaseData';
 
 type RegistrationRequest = {
   id: string; full_name: string; phone_e164: string; role: string; gender: string;

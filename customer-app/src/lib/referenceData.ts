@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { firebaseData as supabase } from './firebaseData';
 
 export type UniversityOption = { id: string; name_ar: string; province_id?: string | null };
 export type ProvinceOption = { id: string; name_ar: string };

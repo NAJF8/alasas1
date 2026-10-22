@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/Header';
 import { useAuth } from '../../context/AuthContext';
-import { supabase } from '../../lib/supabase';
+import { firebaseData as supabase } from '../../lib/firebaseData';
 
 type CaseRow = { id: string; case_number: string; patient_age: number | null; patient_gender: string | null; description: string; symptoms: string[] | null; ai_tags: string[] | null; ai_summary: string | null; created_at: string };
 

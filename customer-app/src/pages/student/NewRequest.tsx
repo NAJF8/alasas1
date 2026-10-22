@@ -4,7 +4,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { Header } from '../../components/layout/Header';
 import { useAuth } from '../../context/AuthContext';
 import { callBackend } from '../../lib/firebaseData';
-import { supabase } from '../../lib/supabase';
+import { firebaseData as supabase } from '../../lib/firebaseData';
 
 type Option = { id: string; name_ar: string };
 const days = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'];
