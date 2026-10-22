@@ -14,3 +14,7 @@ RELEASE_SHA = "13f95a6"
 # R2 is intentionally disabled for this Staging release. The Worker keeps
 # image routes fail-closed with R2_NOT_CONFIGURED until a separately approved
 # storage path exists; no paid bucket is provisioned here.
+
+# Public media uses a GitHub App only after these values are configured as
+# Cloudflare secrets. No token or private key belongs in this file.
+# GITHUB_ASSET_REPOSITORY = "owner/private-public-assets"

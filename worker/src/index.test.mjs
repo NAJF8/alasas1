@@ -34,3 +34,9 @@ test('manager mutations remain protected behind Firebase identity', async () => 
   assert.equal((await request('/api/manager-invite', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'manager@example.com', role: 'ADMIN' }) })).status, 401);
   assert.equal((await request('/api/manager-update', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ profile_id: 'manager', role: 'STAFF', status: 'VERIFIED' }) })).status, 401);
 });
+
+test('public media is never anonymous and medical storage stays fail-closed', async () => {
+  assert.equal((await request('/api/public-media', { method: 'GET' })).status, 401);
+  const response = await request('/api/storage/upload?case_id=synthetic', { method: 'POST', headers: { 'content-type': 'image/png', 'x-file-size': '10' }, body: new Uint8Array([137, 80, 78, 71]) });
+  assert.equal(response.status, 401);
+});
