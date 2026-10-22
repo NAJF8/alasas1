@@ -120,12 +120,17 @@ const runAuthenticatedFlow = async (context, tempDir) => {
     if (response.url() === `${WORKER_URL}/api/public-media` && response.request().method() === 'POST') workerResponses.push({ status: response.status(), body: await json(response) });
   });
   await page.goto(ADMIN_URL, { waitUntil: 'domcontentloaded' });
-  await page.waitForLoadState('networkidle').catch(() => undefined);
+  // Firestore listeners keep network connections open; networkidle is not a
+  // truthful readiness signal for this app and can time out after valid auth.
+  await page.waitForLoadState('domcontentloaded').catch(() => undefined);
   const loginButton = page.getByRole('button', { name: 'تسجيل الدخول باستخدام Google' });
-  if (page.url().includes('/admin/login') || await loginButton.count()) {
-    const email = process.env.DENTAL_E2E_ADMIN_EMAIL;
-    const password = process.env.DENTAL_E2E_ADMIN_PASSWORD;
-    if (email && password) {
+  const email = process.env.DENTAL_E2E_ADMIN_EMAIL;
+  const password = process.env.DENTAL_E2E_ADMIN_PASSWORD;
+  if (email && password) {
+      // Wait for the Admin app's modular Auth persistence setup to finish
+      // before the trusted compat sign-in writes the browser session.
+      await loginButton.waitFor({ state: 'visible' });
+      await page.waitForTimeout(1000);
       await page.addScriptTag({ url: 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app-compat.js' });
       await page.addScriptTag({ url: 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth-compat.js' });
       await page.evaluate(async ({ config, email: address, password: secret }) => {
@@ -133,15 +138,21 @@ const runAuthenticatedFlow = async (context, tempDir) => {
         await app.auth().setPersistence(window.firebase.auth.Auth.Persistence.LOCAL);
         await app.auth().signInWithEmailAndPassword(address, secret);
       }, { config: FIREBASE_CONFIG, email, password });
-      await page.reload({ waitUntil: 'networkidle' });
-    } else {
+      console.log(`AUTOMATED_AUTH=PASS :: Firebase Email/Password sign-in completed uid=${await page.evaluate(() => window.firebase.auth().currentUser?.uid || 'missing')}`);
+      // Allow the browser persistence write and the app's auth observer to
+      // settle before navigation; otherwise a fast reload can race Firebase.
+      await page.waitForTimeout(1500);
+      await page.goto(ADMIN_URL, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(1500);
+      console.log(`AUTOMATED_AUTH_STATE :: url=${page.url()} login_button=${await loginButton.count()}`);
+  } else if (page.url().includes('/admin/login') || await loginButton.count()) {
       if (process.env.DENTAL_E2E_HEADLESS === '1') throw new Error('Admin session is missing; provide approved Email/Password test secrets or a storage state.');
       await loginButton.click();
       await page.waitForURL(/\/admin\/(?!login)/, { timeout: 180000 });
-    }
   }
-  await page.goto(ADMIN_URL, { waitUntil: 'networkidle' });
+  await page.goto(ADMIN_URL, { waitUntil: 'domcontentloaded' });
   if (await page.getByRole('button', { name: 'تسجيل الدخول باستخدام Google' }).count()) throw new Error('Admin session did not reach the authenticated dashboard.');
+  await page.getByRole('heading', { name: 'الإعدادات', exact: true }).waitFor();
   await page.getByRole('button', { name: 'الصور والشعارات', exact: true }).click();
   await page.getByRole('heading', { name: 'مكتبة الأصول العامة' }).waitFor();
   const first = join(tempDir, 'dental-media-test.png');
@@ -154,7 +165,8 @@ const runAuthenticatedFlow = async (context, tempDir) => {
   const upload = await uploadResponse;
   const uploadBody = await json(upload);
   if (upload.status() !== 201 || !uploadBody.media_id || !uploadBody.public_url) throw new Error(`upload failed (${upload.status()}) ${uploadBody.error || ''}`);
-  report('WORKER_UPLOAD_REQUEST', 'PASS', `status=${upload.status()} media_id_present=true`);
+  report('WORKER_AUTHENTICATED_REQUEST', 'PASS', `status=${upload.status()} media_id_present=true`);
+  report('PLAYWRIGHT_UPLOAD', 'PASS', 'setInputFiles completed and Worker returned a media id');
   const uploadedBytes = await readFile(first);
   report('GITHUB_CONTENTS_WRITE', await githubReadback(uploadBody.public_url, uploadedBytes) ? 'PASS' : 'FAIL', 'public Contents readback and byte hash checked');
   const preview = page.locator('img.settings-image-preview').first();
@@ -170,7 +182,8 @@ const runAuthenticatedFlow = async (context, tempDir) => {
   report('MEDIA_REPLACE', 'PASS', `status=${replacement.status()} same_media_id=true`);
   const replacementBytes = await readFile(second);
   report('GITHUB_REPLACE_READBACK', await githubReadback(replacementBody.public_url, replacementBytes) ? 'PASS' : 'FAIL');
-  await page.reload({ waitUntil: 'networkidle' });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByRole('heading', { name: 'الإعدادات', exact: true }).waitFor();
   await page.getByRole('button', { name: 'الصور والشعارات', exact: true }).click();
   await page.getByRole('heading', { name: 'مكتبة الأصول العامة' }).waitFor();
   const currentArticle = page.locator('article').filter({ hasText: 'image/png' }).last();
@@ -206,12 +219,15 @@ const main = async () => {
   try {
     await testUnauthenticated();
     const statePath = requireOutsideWorkspace(STORAGE_STATE);
-    context = await chromium.launchPersistentContext(join(tempDir, 'browser'), { headless: process.env.DENTAL_E2E_HEADLESS === '1', storageState: statePath || undefined });
+    const browserOptions = { headless: process.env.DENTAL_E2E_HEADLESS === '1' };
+    if (statePath) browserOptions.storageState = statePath;
+    context = await chromium.launchPersistentContext(join(tempDir, 'browser'), browserOptions);
     await runAuthenticatedFlow(context, tempDir);
     if (statePath) await context.storageState({ path: statePath });
     report('ADMIN_TEST_AUTH', 'PASS', 'authenticated Admin session reached settings');
   } catch (error) {
-    report('ADMIN_TEST_AUTH', 'BLOCKED', error instanceof Error ? error.message : String(error));
+    const contextDetail = context ? ` pages=${(await Promise.all(context.pages().map(async (item) => `${item.url()} body=${(await item.locator('body').innerText().catch(() => '')).slice(0, 180)}`))).join(' | ')}` : '';
+    report('ADMIN_TEST_AUTH', 'BLOCKED', `${error instanceof Error ? error.message : String(error)}${contextDetail}`);
   } finally {
     await context?.close();
     await rm(tempDir, { recursive: true, force: true });

@@ -48,11 +48,19 @@ const githubKey = async (pem: string) => {
   try {
     let bytes = Uint8Array.from(atob(body), (c) => c.charCodeAt(0));
     if (rsa) {
-      const length = (value: number) => value < 128 ? [value] : [0x82, (value >>> 8) & 0xff, value & 0xff];
-      const prefix = new Uint8Array([0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00]);
-      const totalLength = prefix.length + 4 + bytes.length;
-      const header = new Uint8Array([0x30, ...length(totalLength), 0x02, 0x01, 0x00, ...prefix, 0x04, ...length(bytes.length)]);
-      const wrapped = new Uint8Array(header.length + bytes.length); wrapped.set(header); wrapped.set(bytes, header.length); bytes = wrapped;
+      // WebCrypto accepts PKCS#8. GitHub commonly supplies PKCS#1 RSA PEM,
+      // so wrap the complete PKCS#1 DER as PrivateKeyInfo.privateKey. The
+      // previous fixed-length header was invalid for keys over 127 bytes.
+      const derLength = (value: number) => {
+        if (value < 128) return [value];
+        const width = Math.ceil(Math.log2(value + 1) / 8);
+        return [0x80 | width, ...Array.from({ length: width }, (_, index) => (value >>> (8 * (width - index - 1))) & 0xff)];
+      };
+      const algorithm = new Uint8Array([0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00]);
+      const version = new Uint8Array([0x02, 0x01, 0x00]);
+      const privateKey = new Uint8Array([0x04, ...derLength(bytes.length), ...bytes]);
+      const bodyBytes = new Uint8Array([...version, ...algorithm, ...privateKey]);
+      bytes = new Uint8Array([0x30, ...derLength(bodyBytes.length), ...bodyBytes]);
     }
     return await crypto.subtle.importKey('pkcs8', bytes, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
   } catch (cause) { console.error(JSON.stringify({ event: 'github_key_invalid', reason: 'import_failed', detail: String(cause).slice(0, 160) })); error('GITHUB_PRIVATE_KEY_INVALID', 503); }
