@@ -5,6 +5,7 @@ import { Header } from '../../components/layout/Header';
 import { useAuth } from '../../context/AuthContext';
 import { callBackend } from '../../lib/firebaseData';
 import { firebaseData as supabase } from '../../lib/firebaseData';
+import { getActiveProvinces, getActiveUniversities } from '../../lib/referenceData';
 
 type Option = { id: string; name_ar: string };
 const days = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'];
@@ -25,16 +26,16 @@ export const NewRequest = () => {
   useEffect(() => {
     if (!user) return;
     void Promise.all([
-      supabase.from('clinical_categories').select('id, name_ar').eq('is_active', true).order('name_ar'),
-      supabase.from('provinces').select('id, name_ar').eq('is_active', true).order('name_ar'),
-      supabase.from('universities').select('id, name_ar').eq('is_active', true).eq('has_dental_college', true).order('name_ar'),
+      supabase.from('clinical_categories').select('id, name_ar, is_active').limit(200),
+      getActiveProvinces(),
+      getActiveUniversities(),
       supabase.from('student_preferred_universities').select('university_id').eq('student_id', user.id),
     ]).then(([categoryResult, provinceResult, universityResult, selectedResult]) => {
-      const firstError = categoryResult.error || provinceResult.error || universityResult.error || selectedResult.error;
+      const firstError = categoryResult.error || selectedResult.error;
       if (firstError) setError(`تعذر تحميل خيارات الطلب: ${firstError.message}`);
-      setCategories((categoryResult.data || []) as Option[]);
-      setProvinces((provinceResult.data || []) as Option[]);
-      setUniversities((universityResult.data || []) as Option[]);
+      setCategories(((categoryResult.data || []) as any[]).filter((row) => row.is_active).sort((a, b) => String(a.name_ar).localeCompare(String(b.name_ar), 'ar')) as Option[]);
+      setProvinces(provinceResult as Option[]);
+      setUniversities(universityResult as Option[]);
       setUniversityIds((selectedResult.data || []).map((row) => row.university_id as string));
       setForm((current) => ({ ...current, province_id: current.province_id || profile?.province_id || '' }));
     });

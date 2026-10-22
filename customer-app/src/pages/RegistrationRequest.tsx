@@ -80,9 +80,9 @@ export const RegistrationRequest = () => {
   useEffect(() => {
     if (!values.provinceId) return;
     let active = true;
-    void supabase.from('areas').select('id,name_ar').eq('province_id', values.provinceId).eq('is_active', true).order('name_ar').then(({ data, error: areaError }) => {
+    void supabase.from('areas').select('id,name_ar,province_id,is_active').limit(500).then(({ data, error: areaError }) => {
       if (areaError) console.error('Area list load failed:', areaError.message);
-      if (active) setAreas((data || []) as AreaOption[]);
+      if (active) setAreas((data || []).filter((row: any) => row.province_id === values.provinceId && row.is_active).sort((a: any, b: any) => String(a.name_ar).localeCompare(String(b.name_ar), 'ar')) as AreaOption[]);
     });
     return () => { active = false; };
   }, [values.provinceId]);

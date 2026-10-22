@@ -1,0 +1,23 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "universities",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "has_dental_college", "order": "ASCENDING" },
+        { "fieldPath": "is_active", "order": "ASCENDING" },
+        { "fieldPath": "name_ar", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "areas",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "province_id", "order": "ASCENDING" },
+        { "fieldPath": "is_active", "order": "ASCENDING" },
+        { "fieldPath": "name_ar", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
