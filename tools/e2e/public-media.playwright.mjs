@@ -74,7 +74,10 @@ const githubReadback = async (publicUrl, expectedBytes, expectedStatus = 200) =>
   const parsed = new URL(publicUrl);
   const [, owner, repo, ref, ...pathParts] = parsed.pathname.split('/');
   const path = pathParts.join('/');
-  const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${encodeURIComponent(ref)}`, { headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'alasas-dental-public-media-e2e' } });
+  // Commit-SHA raw URLs are immutable history and remain readable after a
+  // delete. For deletion proof, query the default branch path instead.
+  const refQuery = expectedStatus === 404 ? '' : `?ref=${encodeURIComponent(ref)}`;
+  const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}${refQuery}`, { headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'alasas-dental-public-media-e2e' } });
   if (expectedStatus === 404) return response.status === 404;
   if (response.status !== expectedStatus) return false;
   const body = await response.json();
@@ -210,6 +213,10 @@ const runAuthenticatedFlow = async (context, tempDir) => {
   } finally {
     try { await clearTemporaryBrandingReference(firebaseToken, temporaryReference); } catch (error) { report('PROTECTED_ASSET_CLEANUP', 'FAIL', error instanceof Error ? error.message : String(error)); }
   }
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByRole('heading', { name: 'الإعدادات', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'الصور والشعارات', exact: true }).click();
+  await page.getByRole('heading', { name: 'مكتبة الأصول العامة' }).waitFor();
   const finalArticle = page.locator('article').filter({ hasText: 'image/png' }).last();
   page.once('dialog', (dialog) => dialog.accept());
   const deleteResponse = page.waitForResponse((response) => response.url() === `${WORKER_URL}/api/public-media` && response.request().method() === 'POST');
