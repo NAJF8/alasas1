@@ -148,8 +148,14 @@ body { background: #f5fafc; color: var(--aa-ink); }
 .auth-card { width: min(100%, 540px); padding: 46px; }
 .auth-mark { background: linear-gradient(145deg, #0d66af, #11a996); }
 .auth-card h1, .register-intro h1, .onboarding-heading h1 { color: var(--aa-navy); }
-.auth-tabs { border-color: #dceaf1; background: #f5fafc; }
+.auth-tabs { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, .75fr) minmax(0, .9fr); gap: 6px; margin: 24px 0 20px; padding: 6px; border: 1px solid #dceaf1; border-radius: 15px; background: #f5fafc; }
+.auth-tabs button { min-width: 0; min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 10px; background: transparent; color: #6f879b; cursor: pointer; padding: 8px 6px; font: 600 12px/1.4 'IBM Plex Sans Arabic', Arial, sans-serif; white-space: normal; overflow-wrap: anywhere; }
+.auth-tabs button:hover, .auth-tabs button:focus-visible { color: var(--aa-blue); background: #fff; outline: 2px solid rgba(13,103,181,.22); outline-offset: 1px; }
 .auth-tabs button.active { background: #fff; color: var(--aa-blue); box-shadow: 0 6px 16px rgba(24,93,126,.08); }
+.auth-field { display: grid; gap: 8px; margin-top: 17px; text-align: right; color: #315a7c; font-size: 12px; font-weight: 700; }
+.auth-field input { width: 100%; min-height: 50px; border: 1px solid #d7e7ef; border-radius: 14px; outline: 0; background: #fbfdfe; color: #234b6b; padding: 0 14px; font: 400 14px 'IBM Plex Sans Arabic', Arial, sans-serif; }
+.auth-field input:focus { border-color: var(--aa-teal); box-shadow: 0 0 0 4px rgba(18,167,149,.1); }
+.auth-helper-text { display: block; margin-top: 12px; color: #8299a8; font-size: 11px; line-height: 1.7; }
 .onboarding-shell { width: min(100%, 1080px); }
 .onboarding-card { border-radius: 28px; padding: 38px; }
 .onboarding-field input, .onboarding-field select { border-color: #d7e7ef; background: #fbfdfe; border-radius: 14px; min-height: 50px; }
@@ -317,6 +323,9 @@ main p, main h1, main h2, main h3, main article, main form { overflow-wrap: anyw
 .registration-footer-note { justify-content: center; margin: 18px auto 0; max-width: 590px; text-align: center; }
 .registration-flow-shell > .auth-switch { text-align: center; }
 @media (max-width: 560px) {
+  .auth-tabs { grid-template-columns: minmax(0, 1.35fr) minmax(0, .8fr) minmax(0, .85fr); gap: 4px; margin-top: 20px; padding: 4px; }
+  .auth-tabs button { min-height: 50px; padding: 7px 3px; font-size: 11px; }
+  .auth-card .auth-primary-button, .auth-card .auth-google-button { min-height: 50px; }
   .registration-header { display: block; }
   .registration-role-badge { margin-top: 16px; white-space: normal; }
   .registration-form { padding: 22px 17px; border-radius: 22px; }
