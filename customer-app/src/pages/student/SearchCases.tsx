@@ -23,7 +23,10 @@ export const SearchCases = () => {
     void supabase.rpc('search_anonymized_patient_cases', { p_limit: 30, p_offset: 0 }).then(({ data, error: queryError }) => {
       if (!active) return;
       if (queryError) setError(queryError.message);
-      else setCases((data || []) as CaseRow[]);
+      else {
+        const rows = Array.isArray(data) ? data : data && Array.isArray((data as { data?: unknown }).data) ? (data as { data: CaseRow[] }).data : [];
+        setCases(rows);
+      }
       setBusy(false);
     });
     return () => { active = false; };
