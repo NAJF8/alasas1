@@ -15,7 +15,7 @@ export const firebaseApp = getApps().length ? getApp() : initializeApp(config);
 export const auth = getAuth(firebaseApp);
 export const db = getFirestore(firebaseApp);
 export const googleProvider = new GoogleAuthProvider();
-void setPersistence(auth, browserLocalPersistence);
+export const authPersistenceReady = setPersistence(auth, browserLocalPersistence);
 export const configurationError = null;
 export const getOAuthRedirectUrl = () => new URL(import.meta.env.BASE_URL || '/', window.location.origin).toString();
 
