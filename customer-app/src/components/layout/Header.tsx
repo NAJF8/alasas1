@@ -19,7 +19,7 @@ export const Header = () => {
   return <><header className="customer-header">
     <div className="header-inner">
       <Link to="/" className="brand-lockup" onClick={close}>
-        {branding.customer_header_logo_url || branding.logo_url ? <img className="brand-image" src={branding.customer_header_logo_url || branding.logo_url || ''} alt={branding.platform_arabic_name} /> : <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>}
+        <img className="brand-image official-brand-logo" src={branding.customer_header_logo_url || branding.logo_url || '/brand/official-logo-light.png'} alt="شعار الأساس" />
         <span>{branding.platform_arabic_name}<small>{branding.platform_english_name}</small></span>
       </Link>
       <nav className={open ? 'header-nav is-open' : 'header-nav'}>
