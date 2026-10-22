@@ -75,7 +75,7 @@ service cloud.firestore {
         && request.auth.uid == uid
         && request.resource.data.id == uid
         && request.resource.data.role in ['PATIENT', 'STUDENT']
-        && request.resource.data.status == 'PENDING'
+        && request.resource.data.status == (request.resource.data.role == 'PATIENT' ? 'VERIFIED' : 'PENDING')
         && request.resource.data.diff({}).affectedKeys().hasOnly([
           'id', 'role', 'status', 'full_name', 'phone', 'whatsapp', 'gender',
           'birth_date', 'province_id', 'area_id', 'university_id', 'stage',
@@ -114,10 +114,16 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['university_id']));
     }
 
+    match /patient_case_preferred_universities/{id} {
+      allow read, delete: if manager() || owner('patient_id');
+      allow create: if manager() || incomingOwner('patient_id');
+      allow update: if manager();
+    }
+
     match /patient_cases/{id} {
       allow read: if manager() || owner('patient_id');
       allow create: if manager()
-        || (incomingOwner('patient_id') && request.resource.data.status == 'PENDING');
+        || (incomingOwner('patient_id') && request.resource.data.status == 'WAITING_FOR_MATCH' && request.resource.data.is_approved_for_student_view == true);
       allow update: if (manager() && request.resource.data.status == resource.data.status)
         || (owner('patient_id')
           && incomingOwner('patient_id')

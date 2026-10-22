@@ -1,4 +1,4 @@
-import { Bell, Menu, X } from 'lucide-react';
+import { Bell, MessageCircle, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { isProfileComplete, useAuth } from '../../context/AuthContext';
@@ -13,7 +13,9 @@ export const Header = () => {
   const close = () => setOpen(false);
   const logout = () => { void signOut(); close(); };
 
-  return <header className="customer-header">
+  const supportNumber = String(branding.whatsapp || '').replace(/\D/g, '');
+  const supportUrl = branding.whatsapp_enabled !== false && supportNumber ? `https://wa.me/${supportNumber}?text=${encodeURIComponent(branding.whatsapp_message || 'مرحباً، أحتاج مساعدة بخصوص منصة أسنان الأساس')}` : null;
+  return <><header className="customer-header">
     <div className="header-inner">
       <Link to="/" className="brand-lockup" onClick={close}>
         {branding.customer_header_logo_url || branding.logo_url ? <img className="brand-image" src={branding.customer_header_logo_url || branding.logo_url || ''} alt={branding.platform_arabic_name} /> : <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>}
@@ -46,5 +48,5 @@ export const Header = () => {
         <button className="menu-button" onClick={() => setOpen((current) => !current)} aria-label="القائمة">{open ? <X size={21} /> : <Menu size={21} />}</button>
       </div>
     </div>
-  </header>;
+  </header>{supportUrl && <a className="customer-support-fab" href={supportUrl} target="_blank" rel="noopener noreferrer" aria-label={branding.whatsapp_label_ar || 'تواصل معنا'}><MessageCircle size={20} /><span>{branding.whatsapp_label_ar || 'تواصل معنا'}</span></a>}</>;
 };

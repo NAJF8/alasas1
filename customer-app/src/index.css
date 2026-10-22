@@ -71,6 +71,10 @@ a { color: inherit; text-decoration: none; }
 .customer-notification { display: flex; align-items: flex-start; gap: 12px; }
 .customer-notification svg { flex: 0 0 auto; color: var(--aa-blue); }
 .customer-whatsapp { display: inline-flex; align-items: center; gap: 7px; margin-top: 12px; color: #158563; font-size: 12px; font-weight: 800; }
+.customer-support-fab { position: fixed; inset-inline-end: 22px; bottom: max(22px, env(safe-area-inset-bottom)); z-index: 30; display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 16px; border-radius: 999px; background: #168b63; color: #fff; box-shadow: 0 10px 24px rgba(11, 86, 62, .24); font-size: 13px; font-weight: 800; }
+.customer-support-fab:hover { background: #106f4f; }
+.customer-support-fab:focus-visible { outline: 3px solid rgba(22, 139, 99, .35); outline-offset: 3px; }
+@media (max-width: 560px) { .customer-support-fab { inset-inline-end: 14px; bottom: 14px; min-height: 44px; padding: 0 13px; } }
 .customer-alert { display: flex; align-items: flex-start; gap: 9px; border-radius: 14px; padding: 13px 15px; font-size: 12px; line-height: 1.8; }
 .customer-alert-error { color: #a53e4d; background: #fff0f2; border: 1px solid #f5cdd3; }
 .customer-alert-warning { color: #8a5a16; background: #fff7e6; border: 1px solid #f2d9a2; }

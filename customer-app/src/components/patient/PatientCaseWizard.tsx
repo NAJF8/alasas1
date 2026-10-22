@@ -14,7 +14,7 @@ const days = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 
 const periods = ['صباحاً', 'ظهراً', 'مساءً'];
 
 export const PatientCaseWizard = () => {
-  const { user, profile } = useAuth(); const navigate = useNavigate(); const fileInput = useRef<HTMLInputElement>(null); const submissionInFlight = useRef(false); const cleanupRetryInFlight = useRef(false); const retryCleanup = useRef<null | (() => Promise<void>)>(null); const [currentStep, setCurrentStep] = useState(0); const [provinces, setProvinces] = useState<Option[]>([]); const [areas, setAreas] = useState<Option[]>([]); const [universities, setUniversities] = useState<Option[]>([]); const [saving, setSaving] = useState(false); const [error, setError] = useState<string | null>(null); const [success, setSuccess] = useState<string | null>(null); const [cleanupFailures, setCleanupFailures] = useState<string[]>([]);
+  const { user, profile } = useAuth(); const navigate = useNavigate(); const fileInput = useRef<HTMLInputElement>(null); const submissionInFlight = useRef(false); const retryCleanup = useRef<null | (() => Promise<void>)>(null); const [currentStep, setCurrentStep] = useState(0); const [provinces, setProvinces] = useState<Option[]>([]); const [areas, setAreas] = useState<Option[]>([]); const [universities, setUniversities] = useState<Option[]>([]); const [saving, setSaving] = useState(false); const [error, setError] = useState<string | null>(null); const [success, setSuccess] = useState<string | null>(null); const [cleanupFailures] = useState<string[]>([]);
   const [formData, setFormData] = useState<FormData>({ province_id: profile?.province_id || '', area_id: profile?.area_id || '', patient_age: '', patient_gender: profile?.gender || '', description: '', symptoms: [], images: [], available_days: [], preferred_periods: [], university_ids: [] });
   useEffect(() => { void Promise.all([getActiveProvinces(), getActiveUniversities()]).then(([provinceRows, universityRows]) => { setProvinces(provinceRows as Option[]); setUniversities(universityRows as Option[]); }); }, []);
   useEffect(() => { if (!formData.province_id) { setAreas([]); return; } void supabase.from('areas').select('id, name_ar, province_id, is_active').limit(500).then(({ data }) => setAreas((data || []).filter((row: any) => row.province_id === formData.province_id && row.is_active).sort((a: any, b: any) => String(a.name_ar).localeCompare(String(b.name_ar), 'ar')) as Option[])); }, [formData.province_id]);
@@ -37,7 +37,6 @@ export const PatientCaseWizard = () => {
     submissionInFlight.current = true;
     setSaving(true);
     setError(null);
-    setCleanupFailures([]);
     let createdCase: { id: string; case_number: string } | null = null;
     let caseError: { message: string } | null = null;
     try {
@@ -50,85 +49,13 @@ export const PatientCaseWizard = () => {
       symptoms: formData.symptoms,
       available_days: formData.available_days,
       preferred_periods: formData.preferred_periods,
+      university_ids: formData.university_ids,
       });
       createdCase = result.data;
     } catch (error) { caseError = { message: error instanceof Error ? error.message : String(error) }; }
     if (caseError || !createdCase) { setError(caseError?.message || 'تعذر إنشاء الحالة.'); submissionInFlight.current = false; setSaving(false); return; }
 
-    const uploadedPaths: string[] = [];
-    const cleanupDraft = async (): Promise<{ failures: string[] }> => {
-      const failures: string[] = [];
-      if (uploadedPaths.length) {
-        const { error: storageError } = await supabase.storage.from('patient-case-images').remove(uploadedPaths);
-        if (storageError) failures.push(`Storage: ${storageError.message}`);
-        for (const path of uploadedPaths) {
-          const { data: remaining, error: readbackError } = await supabase.storage.from('patient-case-images').download(path);
-          if (!readbackError && remaining) failures.push(`Storage ما زال يحتوي ${path}`);
-          else if (readbackError && Number((readbackError as { statusCode?: number | string }).statusCode) !== 404) failures.push(`Storage: تعذر التحقق من حذف ${path} (${readbackError.message})`);
-        }
-      }
-      const deleteAndVerify = async (table: 'case_images' | 'patient_case_preferred_universities' | 'patient_cases', filter: (query: any) => any) => {
-        const { error: deleteError } = await filter(supabase.from(table).delete());
-        if (deleteError) failures.push(`${table}: فشل الحذف (${deleteError.message})`);
-        const query = supabase.from(table).select('id');
-        const { data: remaining, error: readbackError } = await filter(query);
-        if (readbackError) failures.push(`${table}: تعذر التحقق من الحذف (${readbackError.message})`);
-        else if ((remaining || []).length > 0) failures.push(`${table}: بقيت سجلات للمسودة`);
-      };
-      await deleteAndVerify('case_images', (query) => query.eq('case_id', createdCase.id));
-      await deleteAndVerify('patient_case_preferred_universities', (query) => query.eq('case_id', createdCase.id));
-      await deleteAndVerify('patient_cases', (query) => query.eq('id', createdCase.id).eq('patient_id', user.id));
-      return { failures };
-    };
-    const failDraft = async (reason: string) => {
-      const result = await cleanupDraft();
-      const cleanupMessage = result.failures.length ? 'فشل جزء من التنظيف؛ لا تعِد الإرسال قبل نجاح إعادة المحاولة.' : 'تم تنظيف المسودة الجديدة.';
-      setCleanupFailures(result.failures);
-      setError(`${reason} لم تُعتمد الحالة. ${cleanupMessage}`);
-      retryCleanup.current = async () => {
-        if (cleanupRetryInFlight.current) return;
-        cleanupRetryInFlight.current = true;
-        try {
-          const retryResult = await cleanupDraft();
-          setCleanupFailures(retryResult.failures);
-          if (retryResult.failures.length === 0) {
-            retryCleanup.current = null;
-            setError('تم تنظيف المسودة بالكامل. يمكنك إرسال الحالة من جديد بأمان.');
-          } else setError('ما زالت بعض آثار المسودة موجودة؛ أعد المحاولة بعد استقرار الاتصال.');
-        } finally {
-          cleanupRetryInFlight.current = false;
-        }
-      };
-      submissionInFlight.current = false;
-      setSaving(false);
-    };
-
-    const { error: universityError } = await supabase.from('patient_case_preferred_universities').insert(formData.university_ids.map((university_id) => ({ case_id: createdCase.id, university_id })));
-    if (universityError) { await failDraft(`تعذر حفظ الجامعات: ${universityError.message}`); return; }
-    const { data: savedUniversities, error: universityReadbackError } = await supabase.from('patient_case_preferred_universities').select('university_id').eq('case_id', createdCase.id);
-    if (universityReadbackError || (savedUniversities || []).length !== formData.university_ids.length) { await failDraft(`تعذر التحقق من الجامعات المحفوظة: ${universityReadbackError?.message || 'عدد الجامعات لا يطابق الاختيار.'}`); return; }
-
-    const { data: savedCase, error: caseReadbackError } = await supabase.from('patient_cases').select('id, case_number, patient_id').eq('id', createdCase.id).eq('patient_id', user.id).single();
-    if (caseReadbackError || !savedCase) { await failDraft(`تم إنشاء المسودة لكن تعذر التحقق منها: ${caseReadbackError?.message || 'لم تُعد قاعدة البيانات السجل.'}`); return; }
-    for (const file of formData.images) {
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const path = `${user.id}/${createdCase.id}/${crypto.randomUUID()}-${safeName}`;
-      const uploadResult = await supabase.storage.from('patient-case-images').upload(path, file, { upsert: false, contentType: file.type });
-      if (uploadResult.error) { await failDraft(`تعذر رفع ${file.name}: ${uploadResult.error.message}`); return; }
-      const actualPath = String(uploadResult.data?.path || path);
-      uploadedPaths.push(actualPath);
-
-      // A successful upload response alone is not enough: read the private object
-      // back through the authenticated Storage policy before recording it.
-      const { data: downloaded, error: downloadError } = await supabase.storage.from('patient-case-images').download(actualPath);
-      if (downloadError || !downloaded || downloaded.size !== file.size) { await failDraft(`تم رفع ${file.name} لكن Readback من Storage لم يطابق الملف.`); return; }
-      const { data: imageRow, error: imageRowError } = await supabase.from('case_images').insert({ case_id: createdCase.id, image_url: actualPath, storage_path: actualPath, image_type: file.type === 'application/pdf' ? 'xray' : 'photo', is_approved_for_student_view: false }).select('id, case_id, storage_path').single();
-      if (imageRowError || !imageRow) { await failDraft(`تم رفع ${file.name} لكن تعذر تسجيل الصورة: ${imageRowError?.message || 'لم تُعد قاعدة البيانات السجل.'}`); return; }
-      const { data: imageReadback, error: imageReadbackError } = await supabase.from('case_images').select('id, case_id, storage_path').eq('id', imageRow.id).eq('case_id', createdCase.id).single();
-      if (imageReadbackError || !imageReadback || imageReadback.storage_path !== actualPath) { await failDraft(`تم تسجيل ${file.name} لكن Readback من قاعدة البيانات لم يؤكده.`); return; }
-    }
-    retryCleanup.current = null;
-    setSuccess(`تم إرسال الحالة ${savedCase.case_number} للمراجعة.`);
+    setSuccess(formData.images.length ? `تم نشر الحالة ${createdCase.case_number} مباشرة ضمن الحالات المتاحة. تخزين الصور الطبية غير مفعّل حالياً، لذلك لم تُرفع الصور الاختيارية.` : `تم نشر الحالة ${createdCase.case_number} مباشرة ضمن الحالات المتاحة للمطابقة.`);
     submissionInFlight.current = false;
     setSaving(false);
   };
