@@ -7,6 +7,7 @@ workers_dev = true
 FIREBASE_PROJECT_ID = "al-asas-dental-staging"
 ALLOWED_ORIGINS = "https://al-asas-dental-staging.web.app,https://al-asas-dental-admin.web.app,http://localhost:5173,http://localhost:5174,http://127.0.0.1:4173,http://127.0.0.1:4174"
 RELEASE_SHA = "f0546ef"
+GITHUB_ASSET_REPOSITORY = "NAJF8/al-asas-assets"
 
 # Add this only with `wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON`.
 # Never commit the service-account JSON or a private key.
