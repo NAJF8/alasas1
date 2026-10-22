@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { normalizeIraqiPhone } from '../src/lib/phoneAuth.ts';
 import { isStrongRegistrationPassword, registrationPasswordStrength } from '../src/lib/registrationFlow.ts';
-import { calculateAge } from '../src/pages/RegistrationRequest.tsx';
+import { calculateAge } from '../src/lib/registrationValidation.ts';
 
 assert.equal(normalizeIraqiPhone('07123456789'), '+9647123456789');
 assert.equal(normalizeIraqiPhone('٠٧١٢٣٤٥٦٧٨٩'), '+9647123456789');

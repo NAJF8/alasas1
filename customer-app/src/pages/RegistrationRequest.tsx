@@ -6,6 +6,7 @@ import { auth } from '../lib/firebase';
 import { getActiveProvinces, getActiveUniversities, type ProvinceOption, type UniversityOption } from '../lib/referenceData';
 import { normalizeIraqiPhone } from '../lib/phoneAuth';
 import { isRegistrationRole, isStrongRegistrationPassword, normalizeRegistrationPassword, readRegistrationRole, registrationPasswordStrength, writeRegistrationRole, type RegistrationRole } from '../lib/registrationFlow';
+import { calculateAge } from '../lib/registrationValidation';
 import { firebaseData as supabase } from '../lib/firebaseData';
 
 type AreaOption = { id: string; name_ar: string };
@@ -13,7 +14,6 @@ type Values = { phone: string; whatsapp: string; password: string; confirmPasswo
 const initialValues: Values = { phone: '', whatsapp: '', password: '', confirmPassword: '', fullName: '', gender: '', provinceId: '', areaId: '', birthDate: '', universityId: '', preferredUniversityIds: [], stage: '', acceptedTerms: false };
 const stages = [{ value: 'THIRD', label: 'الثالثة' }, { value: 'FOURTH', label: 'الرابعة' }, { value: 'FIFTH', label: 'الخامسة' }];
 const roleLabel = (role: RegistrationRole) => role === 'PATIENT' ? 'مريض' : 'طالب طب أسنان';
-export const calculateAge = (birthDate: string, today = new Date()) => { if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return null; const [year, month, day] = birthDate.split('-').map(Number); let age = today.getFullYear() - year; const birthdayPassed = today.getMonth() + 1 > month || today.getMonth() + 1 === month && today.getDate() >= day; if (!birthdayPassed) age -= 1; return age >= 0 && age <= 120 ? age : null; };
 
 const RolePicker = ({ onSelect }: { onSelect: (role: RegistrationRole) => void }) => <main className="auth-page register-page" dir="rtl"><section className="register-shell registration-picker"><span className="auth-eyebrow">أسنان الأساس</span><h1>كيف ستستخدم المنصة؟</h1><p>اختر دورك مرة واحدة، وسنجهّز لك نموذج التسجيل المناسب فقط.</p><div className="register-cards"><button type="button" onClick={() => onSelect('PATIENT')} className="register-card register-card-blue"><span className="register-icon"><UserRound size={26} /></span><span className="register-card-copy"><strong>أنا مريض</strong><small>عرض حالة أسنان والعثور على طالب مناسب</small></span><span className="register-radio">→</span></button><button type="button" onClick={() => onSelect('STUDENT')} className="register-card register-card-teal"><span className="register-icon"><GraduationCap size={26} /></span><span className="register-card-copy"><strong>أنا طالب طب أسنان</strong><small>طلب حالات تدريبية مناسبة لجامعتك</small></span><span className="register-radio">→</span></button></div><p className="auth-switch"><Link to="/">العودة إلى الصفحة الرئيسية</Link></p></section></main>;
 
