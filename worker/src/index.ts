@@ -113,13 +113,15 @@ const updatePublicMediaReference = async (env: Env, actor: Claims, input: Record
   if (!link) {
     const mediaId = String(input.media_id || ''); const currentId = String(target[mediaIdField(field)] || ''); const currentUrl = String(target[field] || '');
     if (mediaId && currentId && mediaId !== currentId) error('MEDIA_REFERENCE_MISMATCH', 409);
-    const response = await firestore(env, `/${collection}/${encodeURIComponent(documentId)}`, { method: 'PATCH', body: JSON.stringify({ fields: { [field]: fs(null), [mediaIdField(field)]: fs(null), updated_at: fs(iso()), updated_by: fs(actor.sub) } }) });
+    const fields = { [field]: fs(null), [mediaIdField(field)]: fs(null), updated_at: fs(iso()), updated_by: fs(actor.sub) };
+    const response = await firestore(env, `/${collection}/${encodeURIComponent(documentId)}`, { method: 'PATCH', body: JSON.stringify({ fields, updateMask: { fieldPaths: Object.keys(fields) } }) });
     if (!response.ok) error('MEDIA_REFERENCE_UPDATE_FAILED', 503);
     return { collection, document_id: documentId, field, unlinked_url: currentUrl };
   }
   const mediaId = String(input.media_id || ''); const media = fromDoc(await getDoc(env, 'public_media_assets', mediaId)) as Record<string, any> | null;
   if (!media?.public_url) error('MEDIA_NOT_FOUND', 404);
-  const response = await firestore(env, `/${collection}/${encodeURIComponent(documentId)}`, { method: 'PATCH', body: JSON.stringify({ fields: { [field]: fs(media.public_url), [mediaIdField(field)]: fs(media.id), updated_at: fs(iso()), updated_by: fs(actor.sub) } }) });
+  const fields = { [field]: fs(media.public_url), [mediaIdField(field)]: fs(media.id), updated_at: fs(iso()), updated_by: fs(actor.sub) };
+  const response = await firestore(env, `/${collection}/${encodeURIComponent(documentId)}`, { method: 'PATCH', body: JSON.stringify({ fields, updateMask: { fieldPaths: Object.keys(fields) } }) });
   if (!response.ok) error('MEDIA_REFERENCE_UPDATE_FAILED', 503);
   const readback = fromDoc(await getDoc(env, collection, documentId));
   if (readback?.[field] !== media.public_url || readback?.[mediaIdField(field)] !== media.id) error('MEDIA_REFERENCE_READBACK_FAILED', 503);
@@ -190,7 +192,8 @@ const publicMedia = async (request: Request, env: Env, actor: Claims, url: URL) 
   if (operation === 'replace' && existing?.public_url && existing.public_url !== publicUrl) {
     const references = await listPublicMediaReferences(env, existing);
     for (const reference of references) {
-      const updated = await firestore(env, `/${reference.collection}/${encodeURIComponent(reference.document_id)}`, { method: 'PATCH', body: JSON.stringify({ fields: { [reference.field]: fs(publicUrl), [mediaIdField(reference.field)]: fs(mediaId), updated_at: fs(iso()) } }) });
+      const fields = { [reference.field]: fs(publicUrl), [mediaIdField(reference.field)]: fs(mediaId), updated_at: fs(iso()) };
+      const updated = await firestore(env, `/${reference.collection}/${encodeURIComponent(reference.document_id)}`, { method: 'PATCH', body: JSON.stringify({ fields, updateMask: { fieldPaths: Object.keys(fields) } }) });
       if (!updated.ok) error('MEDIA_REFERENCE_UPDATE_FAILED', 503);
     }
   }
