@@ -14,7 +14,7 @@ export const Home = () => {
   const { user, profile, loading } = useAuth();
   const [universities, setUniversities] = useState<UniversityCard[]>([]);
   const [categories, setCategories] = useState<ClinicalCategoryOption[]>([]);
-  useEffect(() => { let active = true; void Promise.all([getActiveUniversities(), getActiveClinicalCategories()]).then(([universityRows, categoryRows]) => { if (!active) return; setUniversities(universityRows.slice(0, 8)); setCategories(categoryRows.slice(0, 8)); }); return () => { active = false; }; }, []);
+  useEffect(() => { let active = true; void Promise.all([getActiveUniversities(), getActiveClinicalCategories()]).then(([universityRows, categoryRows]) => { if (!active) return; setUniversities(universityRows.slice(0, 8)); setCategories(categoryRows); }); return () => { active = false; }; }, []);
   const accountName = profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'مستخدم';
   const accountAction = !user ? <><Link className="primary-button hero-primary" to="/register?role=PATIENT&start=1">ابدأ كمريض <UserRound size={18} /></Link><Link className="secondary-button" to="/register?role=STUDENT&start=1">ابدأ كطالب <GraduationCap size={18} /></Link><Link className="text-link" to="/login">تسجيل الدخول</Link></> : loading ? <span className="hero-note">جاري التحقق من الحساب...</span> : <><span className="hero-note">أهلاً، {accountName}</span><Link className="primary-button hero-primary" to={isProfileComplete(profile) ? '/dashboard' : '/onboarding'}>{isProfileComplete(profile) ? 'الذهاب إلى حسابي' : 'أكمل حسابك'} <ArrowLeft size={18} /></Link></>;
   return <div className="customer-shell" dir="rtl"><Header /><main>
