@@ -336,3 +336,4 @@ main p, main h1, main h2, main h3, main article, main form { overflow-wrap: anyw
   .registration-actions { flex-wrap: wrap; }
   .registration-actions .auth-primary-button, .registration-actions .wizard-back { min-width: 0; min-height: 48px; flex: 1 1 160px; }
 }
+ .university-photo img{width:100%;height:100%;object-fit:contain;padding:10px;border-radius:11px;background:rgba(255,255,255,.92)}.customer-empty-state{display:flex;align-items:center;justify-content:center;gap:8px;border:1px dashed #cfe0e8;border-radius:15px;padding:24px;color:#8095a5;font-size:13px}
