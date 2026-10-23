@@ -87,27 +87,6 @@ const githubReadback = async (publicUrl, expectedBytes, expectedStatus = 200) =>
 
 const firestoreRequest = async (token, path, init = {}) => fetch(`${FIRESTORE_BASE}${path}`, { ...init, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(init.headers || {}) } });
 
-const setTemporaryBrandingReference = async (token, value) => {
-  const list = await firestoreRequest(token, '/branding_settings?pageSize=10');
-  if (!list.ok) throw new Error(`branding read failed (${list.status})`);
-  const body = await list.json();
-  const document = body.documents?.[0];
-  if (!document?.name) throw new Error('no branding_settings document available');
-  const name = document.name.split('/documents/')[1];
-  const fieldPath = encodeURIComponent('e2e_test_media_url');
-  const patch = await firestoreRequest(token, `/${name}?updateMask.fieldPaths=${fieldPath}`, { method: 'PATCH', body: JSON.stringify({ fields: { e2e_test_media_url: { stringValue: value } } }) });
-  if (!patch.ok) throw new Error(`branding test reference write failed (${patch.status})`);
-  return { name, hadOriginal: Boolean(document.fields?.e2e_test_media_url), original: document.fields?.e2e_test_media_url };
-};
-
-const clearTemporaryBrandingReference = async (token, reference) => {
-  if (!reference) return;
-  const fieldPath = encodeURIComponent('e2e_test_media_url');
-  const fields = reference.hadOriginal ? { e2e_test_media_url: reference.original } : {};
-  const response = await firestoreRequest(token, `/${reference.name}?updateMask.fieldPaths=${fieldPath}`, { method: 'PATCH', body: JSON.stringify({ fields }) });
-  if (!response.ok) throw new Error(`branding test reference cleanup failed (${response.status})`);
-};
-
 const runAuthenticatedFlow = async (context, tempDir) => {
   const page = await context.newPage();
   page.setDefaultTimeout(30000);
@@ -162,7 +141,8 @@ const runAuthenticatedFlow = async (context, tempDir) => {
   const second = join(tempDir, 'dental-media-test-replacement.png');
   await writeFile(first, makePng(12, 96, 180));
   await writeFile(second, makePng(220, 64, 48));
-  const input = page.locator('input[type="file"]').first();
+  const brandingPicker = page.locator('.public-media-picker').filter({ hasText: 'صورة Hero الرئيسية' }).first();
+  const input = brandingPicker.locator('input[type="file"]');
   const uploadResponse = page.waitForResponse((response) => response.url() === `${WORKER_URL}/api/public-media` && response.request().method() === 'POST');
   await input.setInputFiles(first);
   const upload = await uploadResponse;
@@ -172,7 +152,7 @@ const runAuthenticatedFlow = async (context, tempDir) => {
   report('PLAYWRIGHT_UPLOAD', 'PASS', 'setInputFiles completed and Worker returned a media id');
   const uploadedBytes = await readFile(first);
   report('GITHUB_CONTENTS_WRITE', await githubReadback(uploadBody.public_url, uploadedBytes) ? 'PASS' : 'FAIL', 'public Contents readback and byte hash checked');
-  const preview = page.locator('img.settings-image-preview').first();
+  const preview = brandingPicker.locator('img.public-media-current').first();
   await preview.waitFor({ state: 'visible' });
   report('MEDIA_PREVIEW', (await preview.getAttribute('src'))?.startsWith(uploadBody.public_url) ? 'PASS' : 'FAIL');
   // Upload updates the branding preview immediately, while the media library
@@ -188,7 +168,7 @@ const runAuthenticatedFlow = async (context, tempDir) => {
   await replaceInput.setInputFiles(second);
   const replacement = await replaceResponse;
   const replacementBody = await json(replacement);
-  if (replacement.status() !== 200 || replacementBody.media_id !== uploadBody.media_id || !replacementBody.public_url) throw new Error(`replace failed (${replacement.status()})`);
+  if (replacement.status() !== 200 || replacementBody.media_id !== uploadBody.media_id || !replacementBody.public_url) throw new Error(`replace failed (${replacement.status()}) body=${JSON.stringify(replacementBody)}`);
   report('MEDIA_REPLACE', 'PASS', `status=${replacement.status()} same_media_id=true`);
   const replacementBytes = await readFile(second);
   report('GITHUB_REPLACE_READBACK', await githubReadback(replacementBody.public_url, replacementBytes) ? 'PASS' : 'FAIL');
@@ -196,28 +176,30 @@ const runAuthenticatedFlow = async (context, tempDir) => {
   await page.getByRole('heading', { name: 'الإعدادات', exact: true }).waitFor();
   await page.getByRole('button', { name: 'الصور والشعارات', exact: true }).click();
   await page.getByRole('heading', { name: 'مكتبة الأصول العامة' }).waitFor();
-  const currentArticle = page.locator('article').filter({ hasText: 'image/png' }).last();
-  const deleteButton = currentArticle.getByRole('button', { name: 'حذف', exact: true });
-  let temporaryReference = null;
   try {
     if (!firebaseToken) throw new Error('Firebase token was not observed from the authenticated Admin session.');
-    temporaryReference = await setTemporaryBrandingReference(firebaseToken, replacementBody.public_url);
-    page.once('dialog', (dialog) => dialog.accept());
-    const protectedResponse = page.waitForResponse((response) => response.url() === `${WORKER_URL}/api/public-media` && response.request().method() === 'POST');
-    await deleteButton.click();
-    const protectedResult = await protectedResponse;
+    const protectedResult = await workerRequest('/api/public-media', { method: 'POST', headers: { Authorization: `Bearer ${firebaseToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ operation: 'delete', media_id: replacementBody.media_id }) });
     const protectedBody = await json(protectedResult);
-    report('PROTECTED_ASSET_DELETE', protectedResult.status() === 409 && protectedBody.error === 'MEDIA_IN_USE' ? 'PASS' : 'FAIL', `status=${protectedResult.status()} code=${protectedBody.error || 'unknown'}`);
+    report('PROTECTED_ASSET_DELETE', protectedResult.status === 409 && protectedBody.error === 'MEDIA_IN_USE' ? 'PASS' : 'FAIL', `status=${protectedResult.status} code=${protectedBody.error || 'unknown'}`);
   } catch (error) {
     report('PROTECTED_ASSET_DELETE', 'BLOCKED', error instanceof Error ? error.message : String(error));
-  } finally {
-    try { await clearTemporaryBrandingReference(firebaseToken, temporaryReference); } catch (error) { report('PROTECTED_ASSET_CLEANUP', 'FAIL', error instanceof Error ? error.message : String(error)); }
   }
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.getByRole('heading', { name: 'الإعدادات', exact: true }).waitFor();
   await page.getByRole('button', { name: 'الصور والشعارات', exact: true }).click();
   await page.getByRole('heading', { name: 'مكتبة الأصول العامة' }).waitFor();
-  const finalArticle = page.locator('article').filter({ hasText: 'image/png' }).last();
+  const brandingList = await firestoreRequest(firebaseToken, '/branding_settings?pageSize=10');
+  const brandingBody = await json(brandingList);
+  const brandingName = brandingBody.documents?.[0]?.name;
+  if (!brandingName) throw new Error('no branding_settings document available for unlink');
+  const brandingDocumentId = brandingName.split('/').pop();
+  const unlinkResult = await workerRequest('/api/public-media', { method: 'POST', headers: { Authorization: `Bearer ${firebaseToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ operation: 'unlink', collection: 'branding_settings', document_id: brandingDocumentId, field: 'hero_image_url', media_id: replacementBody.media_id }) });
+  report('MEDIA_UNLINK', unlinkResult.status === 200 ? 'PASS' : 'FAIL', `status=${unlinkResult.status}`);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByRole('heading', { name: 'الإعدادات', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'الصور والشعارات', exact: true }).click();
+  await page.getByRole('heading', { name: 'مكتبة الأصول العامة' }).waitFor();
+  const finalArticle = page.locator('article').filter({ has: page.locator(`img[src="${replacementBody.public_url}"]`) }).first();
   page.once('dialog', (dialog) => dialog.accept());
   const deleteResponse = page.waitForResponse((response) => response.url() === `${WORKER_URL}/api/public-media` && response.request().method() === 'POST');
   await finalArticle.getByRole('button', { name: 'حذف', exact: true }).click();
