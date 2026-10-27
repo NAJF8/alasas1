@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import worker from './index.ts';
 
 const env = { FIREBASE_PROJECT_ID: 'al-asas-dental-staging', ALLOWED_ORIGINS: 'http://localhost:5173', RELEASE_SHA: 'test-sha' };
@@ -39,4 +40,17 @@ test('public media is never anonymous and medical storage stays fail-closed', as
   assert.equal((await request('/api/public-media', { method: 'GET' })).status, 401);
   const response = await request('/api/storage/upload?case_id=synthetic', { method: 'POST', headers: { 'content-type': 'image/png', 'x-file-size': '10' }, body: new Uint8Array([137, 80, 78, 71]) });
   assert.equal(response.status, 401);
+});
+
+test('student request university selections are transaction-owned by the Worker', async () => {
+  const source = await readFile(new URL('./index.ts', import.meta.url), 'utf8');
+  assert.match(source, /INVALID_REQUEST_UNIVERSITIES/);
+  assert.match(source, /student_request_preferred_universities/);
+  assert.match(source, /request_id: entityId, student_id: actor\.sub/);
+});
+
+test('new patient cases remain private until an Admin approval publishes them', async () => {
+  const source = await readFile(new URL('./index.ts', import.meta.url), 'utf8');
+  assert.match(source, /is_approved_for_student_view: false/);
+  assert.match(source, /next === 'WAITING_FOR_MATCH'/);
 });

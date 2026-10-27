@@ -1,9 +1,15 @@
-import { chromium } from 'playwright';
+import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { deflateSync } from 'node:zlib';
+
+// This script intentionally lives at the repository root while Playwright is
+// installed with the Admin app. Resolve that dependency from the owning
+// package so `npm run test:e2e:public-media` works from admin-app.
+const requireFromAdminApp = createRequire(new URL('../../admin-app/package.json', import.meta.url));
+const { chromium } = requireFromAdminApp('playwright');
 
 const ADMIN_URL = process.env.DENTAL_E2E_ADMIN_URL || 'https://al-asas-dental-staging.web.app/admin/settings';
 const WORKER_URL = (process.env.DENTAL_E2E_WORKER_URL || 'https://alasas-dental-staging-worker.coffee101.workers.dev').replace(/\/$/, '');

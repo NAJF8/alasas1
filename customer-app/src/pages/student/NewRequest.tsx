@@ -56,12 +56,10 @@ export const NewRequest = () => {
     setSaving(true);
     let request: { id: string; request_number: string } | null = null;
     let requestError: { message: string } | null = null;
-    try { request = (await callBackend<{ data: { id: string; request_number: string } }>('/api/create_student_request', { province_id: form.province_id || null, clinical_category_id: form.clinical_category_id || null, tooth_area: form.tooth_area || null, available_days: form.available_days, notes: form.notes || null })).data; } catch (error) { requestError = { message: error instanceof Error ? error.message : String(error) }; }
+    try { request = (await callBackend<{ data: { id: string; request_number: string } }>('/api/create_student_request', { province_id: form.province_id || null, clinical_category_id: form.clinical_category_id || null, tooth_area: form.tooth_area || null, available_days: form.available_days, notes: form.notes || null, university_ids: universityIds })).data; } catch (error) { requestError = { message: error instanceof Error ? error.message : String(error) }; }
     if (requestError || !request) { setError(requestError?.message || 'تعذر إرسال الطلب.'); setSaving(false); submitLock.current = false; return; }
     const { data: savedRequest, error: readbackError } = await supabase.from('student_requests').select('id, request_number, student_id, status').eq('id', request.id).eq('student_id', user.id).single();
     if (readbackError || !savedRequest) { setError(`تم الحفظ لكن تعذر التحقق من الطلب: ${readbackError?.message || 'لم تُعد قاعدة البيانات السجل.'}`); setSaving(false); submitLock.current = false; return; }
-    const { error: universityError } = await supabase.from('student_request_preferred_universities').insert(universityIds.map((university_id) => ({ request_id: request.id, university_id })));
-    if (universityError) { setError(`تم إنشاء الطلب لكن تعذر حفظ الجامعات: ${universityError.message}`); setSaving(false); submitLock.current = false; return; }
     const { data: savedUniversities, error: universityReadbackError } = await supabase.from('student_request_preferred_universities').select('university_id').eq('request_id', request.id);
     if (universityReadbackError || (savedUniversities || []).length !== universityIds.length) { setError(`تم إنشاء الطلب لكن تعذر التحقق من الجامعات المحفوظة: ${universityReadbackError?.message || 'عدد الجامعات لا يطابق الاختيار.'}`); setSaving(false); submitLock.current = false; return; }
     setSuccess(`تم إرسال الطلب ${savedRequest.request_number} للمراجعة.`);
