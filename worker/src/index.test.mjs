@@ -14,6 +14,9 @@ test('health is staging-only and does not require a secret', async () => {
 
 test('protected routes reject absent and malformed Firebase tokens', async () => {
   assert.equal((await request('/api/search_anonymized_patient_cases', { method: 'POST' })).status, 401);
+  assert.equal((await request('/api/profile-update', { method: 'POST' })).status, 401);
+  assert.equal((await request('/api/admin-user-update', { method: 'POST' })).status, 401);
+  assert.equal((await request('/api/manager-accept', { method: 'POST' })).status, 401);
   const response = await request('/api/search_anonymized_patient_cases', { method: 'POST', headers: { Authorization: 'Bearer not.a.jwt' } });
   assert.equal(response.status, 401);
   assert.equal((await response.json()).error, 'INVALID_TOKEN');
@@ -40,6 +43,21 @@ test('public media is never anonymous and medical storage stays fail-closed', as
   assert.equal((await request('/api/public-media', { method: 'GET' })).status, 401);
   const response = await request('/api/storage/upload?case_id=synthetic', { method: 'POST', headers: { 'content-type': 'image/png', 'x-file-size': '10' }, body: new Uint8Array([137, 80, 78, 71]) });
   assert.equal(response.status, 401);
+  const unauthDownload = await request('/api/storage/download?path=cases/synthetic/img1', { method: 'GET' });
+  assert.equal(unauthDownload.status, 401);
+  const traversalDownload = await request('/api/storage/download?path=cases/../secret', { method: 'GET' });
+  assert.equal(traversalDownload.status, 400);
+});
+
+test('public-media reference mutations use update masks and preserve target fields', async () => {
+  const source = await readFile(new URL('./index.ts', import.meta.url), 'utf8');
+  assert.match(source, /operation === 'link' \|\| operation === 'unlink'/);
+  assert.match(source, /const firestoreUpdateMask = \(fields: string\[\]\) =>/);
+  assert.match(source, /firestoreUpdateMask\(Object\.keys\(fields\)\)/);
+  assert.doesNotMatch(source, /body: JSON\.stringify\(\{ fields, updateMask:/);
+  assert.match(source, /const readback = fromDoc\(await getDoc\(env, collection, documentId\)\)/);
+  assert.match(source, /if \(readback\?\.\[field\] !== media\.public_url \|\| readback\?\.\[mediaIdField\(field\)\] !== media\.id\)/);
+  assert.match(source, /for \(const reference of references\) \{[\s\S]*?firestoreUpdateMask\(Object\.keys\(fields\)\)/);
 });
 
 test('student request university selections are transaction-owned by the Worker', async () => {
@@ -53,4 +71,5 @@ test('new patient cases remain private until an Admin approval publishes them', 
   const source = await readFile(new URL('./index.ts', import.meta.url), 'utf8');
   assert.match(source, /is_approved_for_student_view: false/);
   assert.match(source, /next === 'WAITING_FOR_MATCH'/);
+  assert.match(source, /CASE_ALREADY_MATCHED/);
 });

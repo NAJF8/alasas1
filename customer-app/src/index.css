@@ -340,3 +340,124 @@ main p, main h1, main h2, main h3, main article, main form { overflow-wrap: anyw
   .category-row{display:grid;grid-template-columns:repeat(4,1fr);gap:15px}.category-tile{background:#fff;border:1px solid #e3eff3;border-radius:16px;padding:12px;color:#42647d;font-size:12px;box-shadow:0 14px 32px rgba(34,93,121,.05)}.category-photo{height:104px;border-radius:11px;display:grid;place-items:center;color:#0aa899;background:linear-gradient(135deg,#e7faf7,#eaf5ff);margin-bottom:13px;overflow:hidden}.category-photo img{width:100%;height:100%;object-fit:contain;padding:10px;border-radius:11px;background:rgba(255,255,255,.92)}.category-tile b{display:block}.categories-section{padding-top:10px}.category-tile:hover{transform:translateY(-3px);box-shadow:0 20px 40px rgba(34,93,121,.1)}
   @media (max-width:860px){.category-row{grid-template-columns:repeat(2,1fr)}}
   @media (max-width:560px){.category-row{grid-template-columns:1fr}}
+
+
+/* Language-aware typography & Theme/Language Capsule Controls (AGENTS.md 21 & 22) */
+html:lang(ar), html:lang(ar) body, :lang(ar) h1, :lang(ar) h2, :lang(ar) h3, :lang(ar) button, :lang(ar) input, :lang(ar) select, :lang(ar) textarea {
+  font-family: 'IBM Plex Sans Arabic', Arial, sans-serif !important;
+}
+html:lang(en), html:lang(en) body, :lang(en) h1, :lang(en) h2, :lang(en) h3, :lang(en) button, :lang(en) input, :lang(en) select, :lang(en) textarea {
+  font-family: Arial, 'IBM Plex Sans Arabic', sans-serif;
+}
+
+.asas-prefs-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.asas-theme-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: #eef6fa;
+  border: 1px solid #d5e6ef;
+}
+.asas-capsule-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: #5b768d;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.asas-capsule-btn.is-active {
+  background: #0d61ad;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(13, 97, 173, 0.25);
+}
+.asas-lang-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: #eef6fa;
+  border: 1px solid #d5e6ef;
+  cursor: pointer;
+}
+.asas-lang-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #5b768d;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.asas-lang-option.is-active {
+  background: #0aa59d;
+  color: #ffffff;
+}
+.asas-flag-icon {
+  width: 15px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+@media (max-width: 640px) {
+  .asas-prefs-bar.is-compact .asas-lang-option span {
+    font-size: 10px;
+  }
+  .asas-prefs-bar.is-compact .asas-capsule-btn {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+html[data-theme="dark"] body,
+html[data-theme="dark"] .customer-app-page,
+html[data-theme="dark"] .customer-shell {
+  background: #0b1929;
+  color: #e2edf8;
+}
+html[data-theme="dark"] .customer-header {
+  background: rgba(11, 25, 41, 0.92);
+  border-bottom-color: #1e3550;
+}
+html[data-theme="dark"] .brand-lockup > span,
+html[data-theme="dark"] .hero-copy h1,
+html[data-theme="dark"] .section-heading h2,
+html[data-theme="dark"] .customer-page-heading h1 {
+  color: #f0f6fc;
+}
+html[data-theme="dark"] .step-card,
+html[data-theme="dark"] .university-tile,
+html[data-theme="dark"] .category-tile,
+html[data-theme="dark"] .faq-grid details,
+html[data-theme="dark"] .customer-section-card,
+html[data-theme="dark"] .trust-strip {
+  background: #12263f;
+  border-color: #213c5c;
+  color: #dbe8f5;
+}
+html[data-theme="dark"] .asas-theme-capsule,
+html[data-theme="dark"] .asas-lang-capsule {
+  background: #162f4c;
+  border-color: #28486d;
+}
+html[data-theme="dark"] .asas-capsule-btn,
+html[data-theme="dark"] .asas-lang-option {
+  color: #a9c1d9;
+}
+html[data-theme="dark"] .asas-capsule-btn.is-active {
+  background: #129b98;
+  color: #ffffff;
+}

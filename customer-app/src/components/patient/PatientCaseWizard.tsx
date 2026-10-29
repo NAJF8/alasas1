@@ -1,38 +1,139 @@
-import { AlertCircle, Camera, CheckCircle, ChevronLeft, ChevronRight, Loader2, Trash2, UploadCloud } from 'lucide-react';
+import { AlertCircle, Camera, CheckCircle, ChevronLeft, ChevronRight, Loader2, ShieldCheck, Trash2, UploadCloud } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { callBackend } from '../../lib/firebaseData';
 import { firebaseData as supabase } from '../../lib/firebaseData';
-import { getActiveProvinces, getActiveUniversities } from '../../lib/referenceData';
+import { getActiveCategories, getActiveProvinces, getActiveUniversities } from '../../lib/referenceData';
 
 const STEPS = ['المعلومات الأساسية', 'وصف المشكلة', 'الأعراض', 'الصور', 'التوفر والجامعات', 'مراجعة وإرسال'];
 type Option = { id: string; name_ar: string };
-type FormData = { province_id: string; area_id: string; patient_age: string; patient_gender: string; description: string; symptoms: string[]; images: File[]; available_days: string[]; preferred_periods: string[]; university_ids: string[] };
+type FormData = {
+  province_id: string;
+  area_id: string;
+  patient_age: string;
+  patient_gender: string;
+  clinical_category_id: string;
+  title: string;
+  description: string;
+  symptoms: string[];
+  images: File[];
+  available_days: string[];
+  preferred_periods: string[];
+  university_ids: string[];
+};
 const symptoms = ['ألم', 'تورم', 'نزف', 'سن مكسور', 'حساسية', 'تسوس ظاهر', 'مشكلة باللثة', 'صعوبة بالأكل', 'لا أعرف'];
 const days = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'];
 const periods = ['صباحاً', 'ظهراً', 'مساءً'];
 
 export const PatientCaseWizard = () => {
-  const { user, profile } = useAuth(); const navigate = useNavigate(); const fileInput = useRef<HTMLInputElement>(null); const submissionInFlight = useRef(false); const retryCleanup = useRef<null | (() => Promise<void>)>(null); const [currentStep, setCurrentStep] = useState(0); const [provinces, setProvinces] = useState<Option[]>([]); const [areas, setAreas] = useState<Option[]>([]); const [universities, setUniversities] = useState<Option[]>([]); const [saving, setSaving] = useState(false); const [error, setError] = useState<string | null>(null); const [success, setSuccess] = useState<string | null>(null); const [cleanupFailures] = useState<string[]>([]);
-  const [formData, setFormData] = useState<FormData>({ province_id: profile?.province_id || '', area_id: profile?.area_id || '', patient_age: '', patient_gender: profile?.gender || '', description: '', symptoms: [], images: [], available_days: [], preferred_periods: [], university_ids: [] });
-  useEffect(() => { void Promise.all([getActiveProvinces(), getActiveUniversities()]).then(([provinceRows, universityRows]) => { setProvinces(provinceRows as Option[]); setUniversities(universityRows as Option[]); }); }, []);
-  useEffect(() => { if (!formData.province_id) { setAreas([]); return; } void supabase.from('areas').select('id, name_ar, province_id, is_active').limit(500).then(({ data }) => setAreas((data || []).filter((row: any) => row.province_id === formData.province_id && row.is_active).sort((a: any, b: any) => String(a.name_ar).localeCompare(String(b.name_ar), 'ar')) as Option[])); }, [formData.province_id]);
-  useEffect(() => { if (!user) return; void supabase.from('patient_preferred_universities').select('university_id').eq('patient_id', user.id).then(({ data }) => setFormData((current) => ({ ...current, university_ids: (data || []).map((row) => row.university_id as string) }))); }, [user]);
+  const { user, profile } = useAuth();
+  const navigate = useNavigate();
+  const fileInput = useRef<HTMLInputElement>(null);
+  const submissionInFlight = useRef(false);
+  const retryCleanup = useRef<null | (() => Promise<void>)>(null);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [provinces, setProvinces] = useState<Option[]>([]);
+  const [areas, setAreas] = useState<Option[]>([]);
+  const [universities, setUniversities] = useState<Option[]>([]);
+  const [categories, setCategories] = useState<Option[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [cleanupFailures] = useState<string[]>([]);
+  const [formData, setFormData] = useState<FormData>({
+    province_id: profile?.province_id || '',
+    area_id: profile?.area_id || '',
+    patient_age: '',
+    patient_gender: profile?.gender || '',
+    clinical_category_id: '',
+    title: '',
+    description: '',
+    symptoms: [],
+    images: [],
+    available_days: [],
+    preferred_periods: [],
+    university_ids: [],
+  });
+
+  useEffect(() => {
+    void Promise.all([getActiveProvinces(), getActiveUniversities(), getActiveCategories()]).then(([provinceRows, universityRows, categoryRows]) => {
+      setProvinces(provinceRows as Option[]);
+      setUniversities(universityRows as Option[]);
+      setCategories(categoryRows.map((c) => ({ id: c.id, name_ar: c.name_ar })));
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!formData.province_id) {
+      setAreas([]);
+      return;
+    }
+    void supabase
+      .from('areas')
+      .select('id, name_ar, province_id, is_active')
+      .limit(500)
+      .then(({ data }) =>
+        setAreas(
+          ((data || []) as any[])
+            .filter((row) => row.province_id === formData.province_id && row.is_active)
+            .sort((a, b) => String(a.name_ar).localeCompare(String(b.name_ar), 'ar')) as Option[],
+        ),
+      );
+  }, [formData.province_id]);
+
+  useEffect(() => {
+    if (!user) return;
+    void supabase
+      .from('patient_preferred_universities')
+      .select('university_id')
+      .eq('patient_id', user.id)
+      .then(({ data }) => setFormData((current) => ({ ...current, university_ids: (data || []).map((row) => row.university_id as string) })));
+  }, [user]);
+
   const set = <K extends keyof FormData>(key: K, value: FormData[K]) => setFormData((current) => ({ ...current, [key]: value }));
   const selectedUniversityNames = useMemo(() => universities.filter((item) => formData.university_ids.includes(item.id)).map((item) => item.name_ar), [formData.university_ids, universities]);
-  const toggle = (key: 'symptoms' | 'available_days' | 'preferred_periods', value: string) => set(key, formData[key].includes(value) ? formData[key].filter((item) => item !== value) : [...formData[key], value]);
-  const validateStep = () => { if (currentStep === 0 && (!formData.province_id || !formData.area_id || !formData.patient_age || !formData.patient_gender)) return 'أكمل المعلومات الأساسية قبل المتابعة.'; if (currentStep === 1 && formData.description.trim().length < 10) return 'اكتب وصفاً مختصراً لا يقل عن 10 أحرف.'; if (currentStep === 4 && (formData.university_ids.length < 1 || formData.university_ids.length > 4)) return 'اختر من جامعة واحدة إلى 4 جامعات.'; return null; };
-  const nextStep = () => { const message = validateStep(); if (message) { setError(message); return; } setError(null); setCurrentStep((step) => Math.min(step + 1, STEPS.length - 1)); };
-  const previousStep = () => { setError(null); setCurrentStep((step) => Math.max(step - 1, 0)); };
+  const selectedCategoryName = useMemo(() => categories.find((item) => item.id === formData.clinical_category_id)?.name_ar || 'غير محدد', [categories, formData.clinical_category_id]);
+  const toggle = (key: 'symptoms' | 'available_days' | 'preferred_periods', value: string) =>
+    set(key, formData[key].includes(value) ? formData[key].filter((item) => item !== value) : [...formData[key], value]);
+
+  const validateStep = () => {
+    if (currentStep === 0 && (!formData.province_id || !formData.area_id || !formData.patient_age || !formData.patient_gender)) return 'أكمل المعلومات الأساسية قبل المتابعة.';
+    if (currentStep === 1 && formData.description.trim().length < 10) return 'اكتب وصفاً مختصراً لا يقل عن 10 أحرف.';
+    if (currentStep === 4 && (formData.university_ids.length < 1 || formData.university_ids.length > 4)) return 'اختر من جامعة واحدة إلى 4 جامعات.';
+    return null;
+  };
+  const nextStep = () => {
+    const message = validateStep();
+    if (message) {
+      setError(message);
+      return;
+    }
+    setError(null);
+    setCurrentStep((step) => Math.min(step + 1, STEPS.length - 1));
+  };
+  const previousStep = () => {
+    setError(null);
+    setCurrentStep((step) => Math.max(step - 1, 0));
+  };
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!user) { setError('يجب تسجيل الدخول أولاً.'); return; }
+    if (!user) {
+      setError('يجب تسجيل الدخول أولاً.');
+      return;
+    }
     if (submissionInFlight.current) return;
     const message = validateStep();
-    if (message) { setError(message); return; }
-    const invalidFile = formData.images.find((file) => !['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(file.type) || file.size > 10 * 1024 * 1024);
-    if (invalidFile) { setError(`الملف ${invalidFile.name} غير صالح؛ يسمح JPG أو PNG أو WEBP أو PDF حتى 10MB.`); return; }
+    if (message) {
+      setError(message);
+      return;
+    }
+    const invalidFile = formData.images.find((file) => !['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(file.type) || file.size < 1 || file.size > 5 * 1024 * 1024);
+    if (invalidFile) {
+      setError(`الملف ${invalidFile.name} غير صالح؛ يسمح JPG أو PNG أو WEBP أو PDF حتى 5MB.`);
+      return;
+    }
 
     submissionInFlight.current = true;
     setSaving(true);
@@ -41,24 +142,259 @@ export const PatientCaseWizard = () => {
     let caseError: { message: string } | null = null;
     try {
       const result = await callBackend<{ data: { id: string; case_number: string } }>('/api/create_patient_case', {
-      province_id: formData.province_id,
-      area_id: formData.area_id,
-      patient_age: Number(formData.patient_age),
-      patient_gender: formData.patient_gender,
-      description: formData.description.trim(),
-      symptoms: formData.symptoms,
-      available_days: formData.available_days,
-      preferred_periods: formData.preferred_periods,
-      university_ids: formData.university_ids,
+        province_id: formData.province_id,
+        area_id: formData.area_id,
+        patient_age: Number(formData.patient_age),
+        patient_gender: formData.patient_gender,
+        clinical_category_id: formData.clinical_category_id || null,
+        title: formData.title.trim() || null,
+        description: formData.description.trim(),
+        symptoms: formData.symptoms,
+        available_days: formData.available_days,
+        preferred_periods: formData.preferred_periods,
+        university_ids: formData.university_ids,
       });
       createdCase = result.data;
-    } catch (error) { caseError = { message: error instanceof Error ? error.message : String(error) }; }
-    if (caseError || !createdCase) { setError(caseError?.message || 'تعذر إنشاء الحالة.'); submissionInFlight.current = false; setSaving(false); return; }
+    } catch (err) {
+      caseError = { message: err instanceof Error ? err.message : String(err) };
+    }
+    if (caseError || !createdCase) {
+      setError(caseError?.message || 'تعذر إنشاء الحالة.');
+      submissionInFlight.current = false;
+      setSaving(false);
+      return;
+    }
 
-    setSuccess(formData.images.length ? `تم نشر الحالة ${createdCase.case_number} مباشرة ضمن الحالات المتاحة. تخزين الصور الطبية غير مفعّل حالياً، لذلك لم تُرفع الصور الاختيارية.` : `تم نشر الحالة ${createdCase.case_number} مباشرة ضمن الحالات المتاحة للمطابقة.`);
+    let uploadedCount = 0;
+    for (const file of formData.images) {
+      const uploadRes = await supabase.storage.from('medical-images').upload(`cases/${createdCase.id}/${file.name}`, file);
+      if (uploadRes.error) {
+        setError(`تم حفظ الحالة ${createdCase.case_number} ولكن تعذر رفع المرفق (${file.name}): ${uploadRes.error.message}`);
+        submissionInFlight.current = false;
+        setSaving(false);
+        return;
+      }
+      uploadedCount += 1;
+    }
+
+    setSuccess(
+      uploadedCount > 0
+        ? `تم إرسال الحالة ${createdCase.case_number} مع ${uploadedCount} مرفق طبي خاص للمراجعة. ستظهر الحالة للطلاب المخولين بعد اعتماد الإدارة.`
+        : `تم إرسال الحالة ${createdCase.case_number} للمراجعة بنجاح. ستظهر للطلاب المخولين بعد اعتماد الإدارة.`,
+    );
     submissionInFlight.current = false;
     setSaving(false);
   };
-  if (success) return <div className="mx-auto max-w-3xl rounded-2xl bg-white p-10 text-center shadow-sm"><CheckCircle className="mx-auto text-teal-600" size={66} /><h2 className="mt-5 text-2xl font-black text-slate-900">تم إرسال الحالة</h2><p className="mt-3 text-slate-500">{success}</p><button type="button" className="mt-7 rounded-xl bg-primary-600 px-6 py-3 font-bold text-white" onClick={() => navigate('/patient/dashboard')}>متابعة الحالة</button></div>;
-  return <div className="mx-auto max-w-4xl p-4 sm:p-6 lg:p-8"><div className="mb-8 flex items-center justify-between gap-2 overflow-x-auto">{STEPS.map((step, index) => <div key={step} className="flex min-w-max items-center gap-2"><div className={`grid h-9 w-9 place-items-center rounded-full text-sm font-bold ${index <= currentStep ? 'bg-primary-600 text-white' : 'bg-slate-200 text-slate-500'}`}>{index + 1}</div><span className={`hidden text-xs sm:block ${index === currentStep ? 'font-bold text-primary-700' : 'text-slate-500'}`}>{step}</span>{index < STEPS.length - 1 && <div className={`h-1 w-8 rounded ${index < currentStep ? 'bg-primary-500' : 'bg-slate-200'}`} />}</div>)}</div><div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm sm:p-8"><form onSubmit={currentStep === STEPS.length - 1 ? submit : (event) => { event.preventDefault(); nextStep(); }}><h2 className="text-2xl font-black text-slate-900">{STEPS[currentStep]}</h2>{currentStep === 0 && <div className="mt-6 grid gap-5 md:grid-cols-2"><label><span className="mb-2 block text-sm font-bold text-slate-700">المحافظة</span><select required value={formData.province_id} onChange={(event) => { set('province_id', event.target.value); set('area_id', ''); }} className="w-full rounded-xl border border-slate-200 p-3"><option value="">اختر المحافظة</option>{provinces.map((item) => <option key={item.id} value={item.id}>{item.name_ar}</option>)}</select></label><label><span className="mb-2 block text-sm font-bold text-slate-700">المنطقة</span><select required value={formData.area_id} onChange={(event) => set('area_id', event.target.value)} className="w-full rounded-xl border border-slate-200 p-3"><option value="">اختر المنطقة</option>{areas.map((item) => <option key={item.id} value={item.id}>{item.name_ar}</option>)}</select></label><label><span className="mb-2 block text-sm font-bold text-slate-700">العمر</span><input required min="1" max="120" type="number" value={formData.patient_age} onChange={(event) => set('patient_age', event.target.value)} className="w-full rounded-xl border border-slate-200 p-3" /></label><label><span className="mb-2 block text-sm font-bold text-slate-700">الجنس</span><select required value={formData.patient_gender} onChange={(event) => set('patient_gender', event.target.value)} className="w-full rounded-xl border border-slate-200 p-3"><option value="">اختر الجنس</option><option value="MALE">ذكر</option><option value="FEMALE">أنثى</option><option value="OTHER">أفضل عدم التحديد</option></select></label></div>}{currentStep === 1 && <div className="mt-6"><p className="mb-3 text-sm text-slate-500">اكتب المشكلة بأسلوبك، ولا تحتاج إلى مصطلحات طبية.</p><textarea required minLength={10} value={formData.description} onChange={(event) => set('description', event.target.value)} className="h-44 w-full resize-none rounded-xl border border-slate-200 p-4" placeholder="مثال: عندي ضرس مكسور وأشعر بالألم عند الأكل..." /></div>}{currentStep === 2 && <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">{symptoms.map((item) => <label key={item} className={`cursor-pointer rounded-xl border p-4 text-sm font-bold ${formData.symptoms.includes(item) ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-slate-200'}`}><input type="checkbox" className="sr-only" checked={formData.symptoms.includes(item)} onChange={() => toggle('symptoms', item)} />{item}</label>)}</div>}{currentStep === 3 && <div className="mt-6"><button type="button" onClick={() => fileInput.current?.click()} className="flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 p-10 text-center hover:bg-slate-50" aria-describedby="medical-upload-status"><UploadCloud className="text-primary-600" size={42} /><b className="mt-3 text-slate-700">اختر صور الأسنان أو الأشعة</b><small className="mt-1 text-slate-400">JPG, PNG, WEBP أو PDF — حتى 10MB للملف</small></button><input ref={fileInput} type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={(event) => set('images', Array.from(event.target.files || []))} />{formData.images.length > 0 && <div className="mt-4 grid gap-2" aria-live="polite">{formData.images.map((file, index) => <div className="flex items-center gap-2 rounded-lg bg-slate-50 p-3 text-sm" key={`${file.name}-${file.size}`}><Camera size={16} className="text-primary-600" /><span className="min-w-0 truncate">{file.name}</span><span className="mr-auto text-xs text-slate-400">{Math.round(file.size / 1024)} KB</span><button type="button" className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-700" aria-label={`إزالة ${file.name}`} onClick={() => set('images', formData.images.filter((_, fileIndex) => fileIndex !== index))}><Trash2 size={16} /></button></div>)}</div>}<div id="medical-upload-status" className="mt-5 flex gap-2 rounded-xl bg-amber-50 p-4 text-sm text-amber-800"><AlertCircle size={18} /> الصور تُجهّز محلياً فقط. لن تُرسل إلى GitHub أو Firebase Storage حتى يتوفر مخزن طبي خاص معتمد؛ لن نعلن نجاح الرفع الآن.</div></div>}{currentStep === 4 && <div className="mt-6 space-y-7"><div><h3 className="mb-3 font-bold text-slate-800">الأيام المتاحة</h3><div className="flex flex-wrap gap-2">{days.map((item) => <button type="button" key={item} onClick={() => toggle('available_days', item)} className={`rounded-lg border px-4 py-2 text-sm ${formData.available_days.includes(item) ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-200'}`}>{item}</button>)}</div></div><div><h3 className="mb-3 font-bold text-slate-800">الفترة المناسبة</h3><div className="flex flex-wrap gap-2">{periods.map((item) => <button type="button" key={item} onClick={() => toggle('preferred_periods', item)} className={`rounded-lg border px-4 py-2 text-sm ${formData.preferred_periods.includes(item) ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-200'}`}>{item}</button>)}</div></div><div><div className="flex items-center justify-between"><h3 className="font-bold text-slate-800">الجامعات المناسبة</h3><span className="text-sm text-teal-700">{formData.university_ids.length}/4</span></div><div className="mt-3 grid gap-2 sm:grid-cols-2">{universities.map((item) => <button type="button" key={item.id} onClick={() => set('university_ids', formData.university_ids.includes(item.id) ? formData.university_ids.filter((id) => id !== item.id) : formData.university_ids.length < 4 ? [...formData.university_ids, item.id] : formData.university_ids)} className={`rounded-xl border p-3 text-right text-sm ${formData.university_ids.includes(item.id) ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-200'}`}>{item.name_ar}</button>)}</div></div></div>}{currentStep === 5 && <div className="mt-6 space-y-4 rounded-2xl bg-slate-50 p-5 text-sm"><div><b>المشكلة:</b> {formData.description || '-'}</div><div><b>الأعراض:</b> {formData.symptoms.join('، ') || 'لم تحدد'}</div><div><b>التوفر:</b> {formData.available_days.join('، ')} — {formData.preferred_periods.join('، ')}</div><div><b>الجامعات:</b> {selectedUniversityNames.join('، ') || '-'}</div><p className="flex gap-2 rounded-xl bg-blue-50 p-4 text-blue-800"><AlertCircle size={18} /> لن يرى الطلاب اسمك أو رقم هاتفك أو واتساب. التواصل يتم عبر الإدارة.</p></div>}{error && <p className="mt-5 flex gap-2 rounded-xl bg-red-50 p-3 text-sm text-red-700"><AlertCircle size={18} />{error}</p>}{cleanupFailures.length > 0 && <div className="mt-3 rounded-xl bg-amber-50 p-4 text-sm text-amber-900"><p className="font-bold">تعذر تأكيد تنظيف المسودة</p><ul className="mt-2 list-disc pr-5">{cleanupFailures.map((failure) => <li key={failure}>{failure}</li>)}</ul><button type="button" className="mt-3 rounded-lg bg-amber-700 px-4 py-2 font-bold text-white" onClick={() => void retryCleanup.current?.()}>إعادة محاولة التنظيف</button></div>}<div className="mt-8 flex items-center justify-between border-t border-slate-100 pt-6">{currentStep > 0 ? <button type="button" onClick={previousStep} className="flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-3 font-bold text-slate-700"><ChevronRight size={18} /> السابق</button> : <span />}{currentStep < STEPS.length - 1 ? <button type="submit" className="flex items-center gap-2 rounded-xl bg-primary-600 px-6 py-3 font-bold text-white">التالي <ChevronLeft size={18} /></button> : <button disabled={saving} type="submit" className="flex items-center gap-2 rounded-xl bg-primary-600 px-6 py-3 font-bold text-white disabled:opacity-60">{saving ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}إرسال الحالة</button>}</div></form></div></div>;
+
+  if (success) {
+    return (
+      <div className="mx-auto max-w-3xl rounded-2xl bg-white p-10 text-center shadow-sm">
+        <CheckCircle className="mx-auto text-teal-600" size={66} />
+        <h2 className="mt-5 text-2xl font-black text-slate-900">تم إرسال الحالة للمراجعة</h2>
+        <p className="mt-3 text-slate-500">{success}</p>
+        <button type="button" className="mt-7 rounded-xl bg-primary-600 px-6 py-3 font-bold text-white" onClick={() => navigate('/patient/dashboard')}>
+          متابعة الحالة
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-4xl p-4 sm:p-6 lg:p-8">
+      <ol className="mb-8 flex items-center justify-between gap-2 overflow-x-auto" aria-label="مراحل إرسال الحالة">
+        {STEPS.map((step, index) => (
+          <li key={step} aria-current={index === currentStep ? 'step' : undefined} className="flex min-w-max items-center gap-2">
+            <div className={`grid h-9 w-9 place-items-center rounded-full text-sm font-bold ${index <= currentStep ? 'bg-primary-600 text-white' : 'bg-slate-200 text-slate-500'}`}>
+              {index < currentStep ? '✓' : index + 1}
+            </div>
+            <span className={`hidden text-xs sm:block ${index === currentStep ? 'font-bold text-primary-700' : 'text-slate-500'}`}>{step}</span>
+            {index < STEPS.length - 1 && <div className={`h-1 w-8 rounded ${index < currentStep ? 'bg-primary-500' : 'bg-slate-200'}`} />}
+          </li>
+        ))}
+      </ol>
+      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm sm:p-8">
+        <form onSubmit={currentStep === STEPS.length - 1 ? submit : (event) => { event.preventDefault(); nextStep(); }}>
+          <h2 className="text-2xl font-black text-slate-900">{STEPS[currentStep]}</h2>
+          {currentStep === 0 && (
+            <div className="mt-6 grid gap-5 md:grid-cols-2">
+              <label>
+                <span className="mb-2 block text-sm font-bold text-slate-700">المحافظة</span>
+                <select required value={formData.province_id} onChange={(event) => { set('province_id', event.target.value); set('area_id', ''); }} className="w-full rounded-xl border border-slate-200 p-3">
+                  <option value="">اختر المحافظة</option>
+                  {provinces.map((item) => <option key={item.id} value={item.id}>{item.name_ar}</option>)}
+                </select>
+              </label>
+              <label>
+                <span className="mb-2 block text-sm font-bold text-slate-700">المنطقة</span>
+                <select required value={formData.area_id} onChange={(event) => set('area_id', event.target.value)} className="w-full rounded-xl border border-slate-200 p-3">
+                  <option value="">اختر المنطقة</option>
+                  {areas.map((item) => <option key={item.id} value={item.id}>{item.name_ar}</option>)}
+                </select>
+              </label>
+              <label>
+                <span className="mb-2 block text-sm font-bold text-slate-700">العمر</span>
+                <input required min="1" max="120" type="number" value={formData.patient_age} onChange={(event) => set('patient_age', event.target.value)} className="w-full rounded-xl border border-slate-200 p-3" />
+              </label>
+              <label>
+                <span className="mb-2 block text-sm font-bold text-slate-700">الجنس</span>
+                <select required value={formData.patient_gender} onChange={(event) => set('patient_gender', event.target.value)} className="w-full rounded-xl border border-slate-200 p-3">
+                  <option value="">اختر الجنس</option>
+                  <option value="MALE">ذكر</option>
+                  <option value="FEMALE">أنثى</option>
+                  <option value="OTHER">أفضل عدم التحديد</option>
+                </select>
+              </label>
+            </div>
+          )}
+          {currentStep === 1 && (
+            <div className="mt-6 space-y-5">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label>
+                  <span className="mb-2 block text-sm font-bold text-slate-700">التصنيف الطبي (اختياري)</span>
+                  <select value={formData.clinical_category_id} onChange={(e) => set('clinical_category_id', e.target.value)} className="w-full rounded-xl border border-slate-200 p-3">
+                    <option value="">اختر التصنيف السريري إن كنت تعرفه</option>
+                    {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name_ar}</option>)}
+                  </select>
+                </label>
+                <label>
+                  <span className="mb-2 block text-sm font-bold text-slate-700">عنوان مختصر للحالة (اختياري)</span>
+                  <input value={formData.title} onChange={(e) => set('title', e.target.value)} placeholder="مثال: ألم في الضرس السفلي" className="w-full rounded-xl border border-slate-200 p-3" />
+                </label>
+              </div>
+              <div>
+                <p className="mb-3 text-sm text-slate-500">اكتب المشكلة بأسلوبك، ولا تحتاج إلى مصطلحات طبية.</p>
+                <textarea required minLength={10} value={formData.description} onChange={(event) => set('description', event.target.value)} className="h-44 w-full resize-none rounded-xl border border-slate-200 p-4" placeholder="مثال: عندي ضرس مكسور وأشعر بالألم عند الأكل..." />
+              </div>
+            </div>
+          )}
+          {currentStep === 2 && (
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {symptoms.map((item) => (
+                <label key={item} className={`cursor-pointer rounded-xl border p-4 text-sm font-bold ${formData.symptoms.includes(item) ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-slate-200'}`}>
+                  <input type="checkbox" className="sr-only" checked={formData.symptoms.includes(item)} onChange={() => toggle('symptoms', item)} />
+                  {item}
+                </label>
+              ))}
+            </div>
+          )}
+          {currentStep === 3 && (
+            <div className="mt-6">
+              <button type="button" onClick={() => fileInput.current?.click()} className="flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 p-10 text-center hover:bg-slate-50" aria-describedby="medical-upload-status">
+                <UploadCloud className="text-primary-600" size={42} />
+                <b className="mt-3 text-slate-700">اختر صور الأسنان أو الأشعة (اختياري)</b>
+                <small className="mt-1 text-slate-400">JPG, PNG, WEBP أو PDF — حتى 5MB للملف</small>
+              </button>
+              <input ref={fileInput} type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={(event) => set('images', Array.from(event.target.files || []))} />
+              {formData.images.length > 0 && (
+                <div className="mt-4 grid gap-2" aria-live="polite">
+                  {formData.images.map((file, index) => (
+                    <div className="flex items-center gap-2 rounded-lg bg-slate-50 p-3 text-sm" key={`${file.name}-${file.size}`}>
+                      <Camera size={16} className="text-primary-600" />
+                      <span className="min-w-0 truncate">{file.name}</span>
+                      <span className="mr-auto text-xs text-slate-400">{Math.round(file.size / 1024)} KB</span>
+                      <button type="button" className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-700" aria-label={`إزالة ${file.name}`} onClick={() => set('images', formData.images.filter((_, fileIndex) => fileIndex !== index))}>
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div id="medical-upload-status" className="mt-5 flex gap-2 rounded-xl bg-teal-50 p-4 text-sm text-teal-900">
+                <ShieldCheck size={18} className="shrink-0 text-teal-700" />
+                <span>تُحفظ الصور والأشعة في مخزن طبي خاص ومعزول، ولا يمكن الاطلاع عليها إلا من قِبل الإدارة أو الطالب المطابق لحالتك عبر روابط موقعة قصيرة الصلاحية.</span>
+              </div>
+            </div>
+          )}
+          {currentStep === 4 && (
+            <div className="mt-6 space-y-7">
+              <div>
+                <h3 className="mb-3 font-bold text-slate-800">الأيام المتاحة</h3>
+                <div className="flex flex-wrap gap-2">
+                  {days.map((item) => (
+                    <button type="button" key={item} onClick={() => toggle('available_days', item)} className={`rounded-lg border px-4 py-2 text-sm ${formData.available_days.includes(item) ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-200'}`}>
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h3 className="mb-3 font-bold text-slate-800">الفترة المناسبة</h3>
+                <div className="flex flex-wrap gap-2">
+                  {periods.map((item) => (
+                    <button type="button" key={item} onClick={() => toggle('preferred_periods', item)} className={`rounded-lg border px-4 py-2 text-sm ${formData.preferred_periods.includes(item) ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-200'}`}>
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-slate-800">الجامعات المناسبة</h3>
+                  <span className="text-sm text-teal-700">{formData.university_ids.length}/4</span>
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {universities.map((item) => (
+                    <button
+                      type="button"
+                      key={item.id}
+                      onClick={() => set('university_ids', formData.university_ids.includes(item.id) ? formData.university_ids.filter((id) => id !== item.id) : formData.university_ids.length < 4 ? [...formData.university_ids, item.id] : formData.university_ids)}
+                      className={`rounded-xl border p-3 text-right text-sm ${formData.university_ids.includes(item.id) ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-200'}`}
+                    >
+                      {item.name_ar}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          {currentStep === 5 && (
+            <div className="mt-6 space-y-4 rounded-2xl bg-slate-50 p-5 text-sm">
+              <div><b>التصنيف الطبي:</b> {selectedCategoryName}</div>
+              <div><b>المشكلة:</b> {formData.description || '-'}</div>
+              <div><b>الأعراض:</b> {formData.symptoms.join('، ') || 'لم تحدد'}</div>
+              <div><b>المرفقات الطبية:</b> {formData.images.length ? `${formData.images.length} ملف` : 'بدون مرفقات'}</div>
+              <div><b>التوفر:</b> {formData.available_days.join('، ')} — {formData.preferred_periods.join('، ')}</div>
+              <div><b>الجامعات:</b> {selectedUniversityNames.join('، ') || '-'}</div>
+              <p className="flex gap-2 rounded-xl bg-blue-50 p-4 text-blue-800">
+                <AlertCircle size={18} /> لن يرى الطلاب اسمك أو رقم هاتفك أو واتساب، ولا تظهر الحالة في البحث العام قبل اعتمادها من الإدارة.
+              </p>
+            </div>
+          )}
+          {error && (
+            <p role="alert" className="mt-5 flex gap-2 rounded-xl bg-red-50 p-3 text-sm text-red-700">
+              <AlertCircle size={18} />
+              {error}
+            </p>
+          )}
+          {cleanupFailures.length > 0 && (
+            <div className="mt-3 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
+              <p className="font-bold">تعذر تأكيد تنظيف المسودة</p>
+              <ul className="mt-2 list-disc pr-5">
+                {cleanupFailures.map((failure) => <li key={failure}>{failure}</li>)}
+              </ul>
+              <button type="button" className="mt-3 rounded-lg bg-amber-700 px-4 py-2 font-bold text-white" onClick={() => void retryCleanup.current?.()}>
+                إعادة محاولة التنظيف
+              </button>
+            </div>
+          )}
+          <div className="mt-8 flex items-center justify-between border-t border-slate-100 pt-6">
+            {currentStep > 0 ? (
+              <button type="button" onClick={previousStep} className="flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-3 font-bold text-slate-700">
+                <ChevronRight size={18} /> السابق
+              </button>
+            ) : <span />}
+            {currentStep < STEPS.length - 1 ? (
+              <button type="submit" className="flex items-center gap-2 rounded-xl bg-primary-600 px-6 py-3 font-bold text-white">
+                التالي <ChevronLeft size={18} />
+              </button>
+            ) : (
+              <button disabled={saving} type="submit" className="flex items-center gap-2 rounded-xl bg-primary-600 px-6 py-3 font-bold text-white disabled:opacity-60">
+                {saving ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}إرسال الحالة
+              </button>
+            )}
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 };

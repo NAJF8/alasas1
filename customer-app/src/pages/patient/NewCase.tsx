@@ -1,9 +1,10 @@
 import { Header } from '../../components/layout/Header';
+import { CustomerFooter } from '../../components/layout/PreferencesBar';
 import { PatientCaseWizard } from '../../components/patient/PatientCaseWizard';
 
 export const NewCase = () => {
   return (
-    <div className="customer-app-page customer-form-page min-h-screen bg-gray-50 flex flex-col">
+    <div className="customer-app-page customer-form-page min-h-screen bg-gray-50 flex flex-col" dir="rtl">
       <Header />
       <main className="customer-app-main flex-grow py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -14,6 +15,7 @@ export const NewCase = () => {
           <PatientCaseWizard />
         </div>
       </main>
+      <CustomerFooter />
     </div>
   );
 };

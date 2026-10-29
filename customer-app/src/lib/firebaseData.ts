@@ -42,7 +42,68 @@ const withTimestamps = (table: string, payload: Record<string, unknown>) => ({ .
 const authHeaders = async (): Promise<Record<string, string>> => { const token = auth.currentUser ? await getIdToken(auth.currentUser, true) : null; return token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }; };
 export const callBackend = async <T = any>(path: string, body?: unknown): Promise<T> => { const response = await fetch(`${apiBaseUrl}${path}`, { method: body === undefined ? 'GET' : 'POST', headers: await authHeaders(), body: body === undefined ? undefined : JSON.stringify(body) }); const result = await response.json().catch(() => ({})); if (!response.ok) throw new Error(result.message || result.error || `Backend request failed (${response.status})`); return result as T; };
 
-const storageApi = { from: (bucket: string) => ({ upload: async (path: string, file: File) => { try { const token = auth.currentUser ? await getIdToken(auth.currentUser, true) : ''; const caseId = path.split('/')[1] || ''; const response = await fetch(`${apiBaseUrl}/api/storage/upload?bucket=${encodeURIComponent(bucket)}&case_id=${encodeURIComponent(caseId)}`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': file.type, 'x-file-size': String(file.size) }, body: file }); if (!response.ok) throw new Error(`Upload failed (${response.status})`); const result = await response.json() as { path?: string }; return { data: { path: result.path || path }, error: null }; } catch (error) { return { data: null, error: { message: error instanceof Error ? error.message : String(error) } }; } }, remove: async (paths: string[]) => { try { await callBackend('/api/storage/remove', { bucket, paths }); return { data: null, error: null }; } catch (error) { return { data: null, error: { message: error instanceof Error ? error.message : String(error) } }; } }, download: async (path: string) => { try { const token = auth.currentUser ? await getIdToken(auth.currentUser, true) : ''; const response = await fetch(`${apiBaseUrl}/api/storage/download?bucket=${encodeURIComponent(bucket)}&path=${encodeURIComponent(path)}`, { headers: { Authorization: `Bearer ${token}` } }); if (!response.ok) throw new Error(`Download failed (${response.status})`); return { data: await response.blob(), error: null }; } catch (error) { return { data: null, error: { message: error instanceof Error ? error.message : String(error) } }; } } }) };
+const storageApi = {
+  from: (bucket: string) => ({
+    upload: async (path: string, file: File) => {
+      try {
+        const token = auth.currentUser ? await getIdToken(auth.currentUser, true) : '';
+        const caseId = path.split('/')[1] || path.split('/')[0] || '';
+        const response = await fetch(`${apiBaseUrl}/api/storage/upload?bucket=${encodeURIComponent(bucket)}&case_id=${encodeURIComponent(caseId)}`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': file.type,
+            'x-file-size': String(file.size),
+            'x-file-name': encodeURIComponent(file.name || 'medical-image'),
+          },
+          body: file,
+        });
+        const result = await response.json().catch(() => ({})) as { image_id?: string; path?: string; signed_url?: string; expires_at?: string; error?: string; message?: string };
+        if (!response.ok) throw new Error(result.message || result.error || `Upload failed (${response.status})`);
+        return { data: { image_id: result.image_id, path: result.path || path, signed_url: result.signed_url, expires_at: result.expires_at }, error: null };
+      } catch (error) {
+        return { data: null, error: { message: error instanceof Error ? error.message : String(error) } };
+      }
+    },
+    listByCase: async (caseId: string) => {
+      try {
+        const result = await callBackend<{ data: any[] }>(`/api/storage/list?case_id=${encodeURIComponent(caseId)}`);
+        return { data: result.data || [], error: null };
+      } catch (error) {
+        return { data: [], error: { message: error instanceof Error ? error.message : String(error) } };
+      }
+    },
+    createSignedUrl: async (path: string, ttlSeconds = 300) => {
+      try {
+        const result = await callBackend<{ signed_url: string; expires_at: string; image_id: string }>('/api/storage/signed-url', { path, ttl_seconds: ttlSeconds });
+        return { data: { signedUrl: result.signed_url, expiresAt: result.expires_at, imageId: result.image_id }, error: null };
+      } catch (error) {
+        return { data: null, error: { message: error instanceof Error ? error.message : String(error) } };
+      }
+    },
+    remove: async (paths: string[]) => {
+      try {
+        await callBackend('/api/storage/remove', { bucket, paths });
+        return { data: null, error: null };
+      } catch (error) {
+        return { data: null, error: { message: error instanceof Error ? error.message : String(error) } };
+      }
+    },
+    download: async (path: string) => {
+      try {
+        const token = auth.currentUser ? await getIdToken(auth.currentUser, true) : '';
+        const response = await fetch(`${apiBaseUrl}/api/storage/download?bucket=${encodeURIComponent(bucket)}&path=${encodeURIComponent(path)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) throw new Error(`Download failed (${response.status})`);
+        return { data: await response.blob(), error: null };
+      } catch (error) {
+        return { data: null, error: { message: error instanceof Error ? error.message : String(error) } };
+      }
+    },
+  }),
+};
+
 export const firebaseData: any = {
   storage: storageApi,
   from(table: string) {

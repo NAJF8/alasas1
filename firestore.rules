@@ -79,7 +79,7 @@ service cloud.firestore {
         && request.resource.data.diff({}).affectedKeys().hasOnly([
           'id', 'role', 'status', 'full_name', 'phone', 'whatsapp', 'gender',
           'birth_date', 'province_id', 'area_id', 'university_id', 'stage',
-          'workplace', 'created_at', 'updated_at'
+          'workplace', 'preferred_university_ids', 'created_at', 'updated_at'
         ]);
       allow update: if superAdmin()
         || (signedIn()
@@ -91,7 +91,7 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'full_name', 'phone', 'whatsapp', 'gender', 'birth_date',
             'province_id', 'area_id', 'university_id', 'stage', 'workplace',
-            'updated_at'
+            'preferred_university_ids', 'updated_at'
           ]));
       allow delete: if superAdmin();
     }
@@ -123,23 +123,24 @@ service cloud.firestore {
     match /patient_cases/{id} {
       allow read: if manager() || owner('patient_id');
       allow create: if manager()
-        || (incomingOwner('patient_id') && request.resource.data.status == 'WAITING_FOR_MATCH' && request.resource.data.is_approved_for_student_view == true);
+        || (incomingOwner('patient_id') && request.resource.data.status == 'PENDING' && request.resource.data.is_approved_for_student_view == false);
       allow update: if (manager() && request.resource.data.status == resource.data.status)
         || (owner('patient_id')
           && incomingOwner('patient_id')
           && request.resource.data.status == resource.data.status
+          && !(resource.data.status in ['MATCHED', 'IN_PROGRESS', 'COMPLETED'])
           && request.resource.data.case_number == resource.data.case_number
           && request.resource.data.created_at == resource.data.created_at
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'province_id', 'area_id', 'patient_age', 'patient_gender',
-            'description', 'symptoms', 'available_days', 'preferred_periods',
-            'updated_at'
+            'clinical_category_id', 'title', 'description', 'symptoms',
+            'available_days', 'preferred_periods', 'updated_at'
           ]));
-      allow delete: if manager();
+      allow delete: if manager() && !(resource.data.status in ['MATCHED', 'IN_PROGRESS', 'COMPLETED']);
     }
 
     // Students never read medical image documents directly. A trusted backend
-    // issues a short-lived private R2 URL only after approval/matching.
+    // issues a short-lived private signed URL only after approval/matching.
     match /case_images/{id} {
       allow read: if manager()
         || (signedIn() && get(/databases/$(database)/documents/patient_cases/$(resource.data.case_id)).data.patient_id == request.auth.uid);
@@ -160,7 +161,7 @@ service cloud.firestore {
           && request.resource.data.created_at == resource.data.created_at
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'province_id', 'clinical_category_id', 'tooth_area', 'available_days',
-            'notes', 'updated_at'
+            'notes', 'requested_case_id', 'updated_at'
           ]));
       allow delete: if manager();
     }

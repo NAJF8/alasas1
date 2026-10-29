@@ -1,7 +1,8 @@
 import { AlertCircle, CheckCircle, Loader2, Send } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { Header } from '../../components/layout/Header';
+import { CustomerFooter } from '../../components/layout/PreferencesBar';
 import { useAuth } from '../../context/AuthContext';
 import { callBackend } from '../../lib/firebaseData';
 import { firebaseData as supabase } from '../../lib/firebaseData';
@@ -13,6 +14,9 @@ const days = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 
 export const NewRequest = () => {
   const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requestedCaseId = searchParams.get('case') || '';
+  const requestedCaseNumber = searchParams.get('case_number') || '';
   const submitLock = useRef(false);
   const [categories, setCategories] = useState<Option[]>([]);
   const [provinces, setProvinces] = useState<Option[]>([]);
@@ -56,15 +60,35 @@ export const NewRequest = () => {
     setSaving(true);
     let request: { id: string; request_number: string } | null = null;
     let requestError: { message: string } | null = null;
-    try { request = (await callBackend<{ data: { id: string; request_number: string } }>('/api/create_student_request', { province_id: form.province_id || null, clinical_category_id: form.clinical_category_id || null, tooth_area: form.tooth_area || null, available_days: form.available_days, notes: form.notes || null, university_ids: universityIds })).data; } catch (error) { requestError = { message: error instanceof Error ? error.message : String(error) }; }
+    try {
+      request = (await callBackend<{ data: { id: string; request_number: string } }>('/api/create_student_request', {
+        province_id: form.province_id || null,
+        clinical_category_id: form.clinical_category_id || null,
+        tooth_area: form.tooth_area || null,
+        available_days: form.available_days,
+        notes: form.notes || null,
+        university_ids: universityIds,
+        ...(requestedCaseId ? { requested_case_id: requestedCaseId } : {}),
+      })).data;
+    } catch (err) {
+      const code = err instanceof Error ? err.message : String(err);
+      requestError = {
+        message:
+          code === 'DUPLICATE_CASE_REQUEST'
+            ? 'لقد قمت بإرسال طلب سابق لهذه الحالة السريرية بالفعل.'
+            : code === 'CASE_NOT_AVAILABLE'
+              ? 'هذه الحالة لم تعد متاحة للمطابقة.'
+              : code,
+      };
+    }
     if (requestError || !request) { setError(requestError?.message || 'تعذر إرسال الطلب.'); setSaving(false); submitLock.current = false; return; }
-    const { data: savedRequest, error: readbackError } = await supabase.from('student_requests').select('id, request_number, student_id, status').eq('id', request.id).eq('student_id', user.id).single();
+    const { data: savedRequest, error: readbackError } = await supabase.from('student_requests').select('id, request_number, student_id, status, requested_case_id').eq('id', request.id).eq('student_id', user.id).single();
     if (readbackError || !savedRequest) { setError(`تم الحفظ لكن تعذر التحقق من الطلب: ${readbackError?.message || 'لم تُعد قاعدة البيانات السجل.'}`); setSaving(false); submitLock.current = false; return; }
     const { data: savedUniversities, error: universityReadbackError } = await supabase.from('student_request_preferred_universities').select('university_id').eq('request_id', request.id);
     if (universityReadbackError || (savedUniversities || []).length !== universityIds.length) { setError(`تم إنشاء الطلب لكن تعذر التحقق من الجامعات المحفوظة: ${universityReadbackError?.message || 'عدد الجامعات لا يطابق الاختيار.'}`); setSaving(false); submitLock.current = false; return; }
-    setSuccess(`تم إرسال الطلب ${savedRequest.request_number} للمراجعة.`);
+    setSuccess(`تم إرسال الطلب ${savedRequest.request_number} للمراجعة بنجاح.`);
     setSaving(false);
   };
 
-  return <div className="min-h-screen bg-slate-50" dir="rtl"><Header /><main className="mx-auto max-w-3xl px-4 py-10">{success ? <section className="rounded-3xl bg-white p-10 text-center shadow"><CheckCircle className="mx-auto text-teal-600" size={64} /><h1 className="mt-4 text-2xl font-black">تم إرسال الطلب</h1><p className="mt-3 text-slate-500">{success}</p><button type="button" className="mt-6 rounded-xl bg-primary-600 px-6 py-3 font-bold text-white" onClick={() => navigate('/student/search')}>متابعة الحالات</button></section> : <form onSubmit={submit} className="rounded-3xl bg-white p-6 shadow sm:p-9"><h1 className="text-3xl font-black text-slate-900">إنشاء طلب سريري</h1><p className="mt-2 text-slate-500">حدد الحالة التي تبحث عنها والجامعات العملية لك.</p><div className="mt-8 grid gap-5 sm:grid-cols-2"><label><span className="mb-2 block text-sm font-bold">التصنيف السريري</span><select value={form.clinical_category_id} onChange={(event) => setForm({ ...form, clinical_category_id: event.target.value })} className="w-full rounded-xl border border-slate-200 p-3"><option value="">اختر التصنيف</option>{categories.map((item) => <option key={item.id} value={item.id}>{item.name_ar}</option>)}</select></label><label><span className="mb-2 block text-sm font-bold">السن أو المنطقة</span><input value={form.tooth_area} onChange={(event) => setForm({ ...form, tooth_area: event.target.value })} placeholder="مثال: ضرس سفلي" className="w-full rounded-xl border border-slate-200 p-3" /></label><label><span className="mb-2 block text-sm font-bold">المحافظة</span><select value={form.province_id} onChange={(event) => setForm({ ...form, province_id: event.target.value })} className="w-full rounded-xl border border-slate-200 p-3"><option value="">اختر المحافظة</option>{provinces.map((item) => <option key={item.id} value={item.id}>{item.name_ar}</option>)}</select></label></div><section className="mt-7"><h2 className="font-bold">الجامعات المحفوظة</h2><p className="mt-1 text-xs text-slate-500">اختر من جامعة واحدة إلى أربع جامعات.</p><div className="mt-3 grid gap-2 sm:grid-cols-2">{universities.map((item) => <button type="button" key={item.id} onClick={() => setUniversityIds((current) => current.includes(item.id) ? current.filter((id) => id !== item.id) : current.length < 4 ? [...current, item.id] : current)} className={`rounded-xl border p-3 text-right text-sm ${universityIds.includes(item.id) ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-200'}`}>{item.name_ar}</button>)}</div><div className="mt-2 text-xs text-teal-700">{universityIds.length}/4 محددة</div></section><section className="mt-7"><h2 className="font-bold">الأيام المتاحة <span className="font-normal text-slate-400">(اختياري)</span></h2><div className="mt-3 flex flex-wrap gap-2">{days.map((day) => <button type="button" key={day} onClick={() => toggleDay(day)} className={`rounded-lg border px-3 py-2 text-sm ${form.available_days.includes(day) ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-200'}`}>{day}</button>)}</div></section><label className="mt-7 block"><span className="mb-2 block text-sm font-bold">ملاحظات</span><textarea value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} className="h-32 w-full rounded-xl border border-slate-200 p-3" placeholder="أي متطلبات سريرية إضافية..." /></label>{error && <p role="alert" className="mt-5 flex gap-2 rounded-xl bg-red-50 p-3 text-sm text-red-700"><AlertCircle size={18} />{error}</p>}<button type="submit" disabled={saving} className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 px-5 py-3.5 font-bold text-white disabled:opacity-60">{saving ? <Loader2 className="animate-spin" size={19} /> : <Send size={19} />}إرسال الطلب</button></form>}</main></div>;
+  return <div className="min-h-screen bg-slate-50" dir="rtl"><Header /><main className="mx-auto max-w-3xl px-4 py-10">{success ? <section className="rounded-3xl bg-white p-10 text-center shadow"><CheckCircle className="mx-auto text-teal-600" size={64} /><h1 className="mt-4 text-2xl font-black">تم إرسال الطلب</h1><p className="mt-3 text-slate-500">{success}</p><button type="button" className="mt-6 rounded-xl bg-primary-600 px-6 py-3 font-bold text-white" onClick={() => navigate('/student/search')}>متابعة الحالات</button></section> : <form onSubmit={submit} className="rounded-3xl bg-white p-6 shadow sm:p-9"><h1 className="text-3xl font-black text-slate-900">إنشاء طلب سريري</h1><p className="mt-2 text-slate-500">حدد الحالة التي تبحث عنها والجامعات العملية لك.</p>{requestedCaseId && <div className="mt-4 rounded-xl bg-teal-50 p-3.5 text-sm font-bold text-teal-800">طلب مطابقة مرتبط بالحالة السريرية: {requestedCaseNumber || requestedCaseId}</div>}<div className="mt-8 grid gap-5 sm:grid-cols-2"><label><span className="mb-2 block text-sm font-bold">التصنيف السريري</span><select value={form.clinical_category_id} onChange={(event) => setForm({ ...form, clinical_category_id: event.target.value })} className="w-full rounded-xl border border-slate-200 p-3"><option value="">اختر التصنيف</option>{categories.map((item) => <option key={item.id} value={item.id}>{item.name_ar}</option>)}</select></label><label><span className="mb-2 block text-sm font-bold">السن أو المنطقة</span><input value={form.tooth_area} onChange={(event) => setForm({ ...form, tooth_area: event.target.value })} placeholder="مثال: ضرس سفلي" className="w-full rounded-xl border border-slate-200 p-3" /></label><label><span className="mb-2 block text-sm font-bold">المحافظة</span><select value={form.province_id} onChange={(event) => setForm({ ...form, province_id: event.target.value })} className="w-full rounded-xl border border-slate-200 p-3"><option value="">اختر المحافظة</option>{provinces.map((item) => <option key={item.id} value={item.id}>{item.name_ar}</option>)}</select></label></div><section className="mt-7"><h2 className="font-bold">الجامعات المحفوظة</h2><p className="mt-1 text-xs text-slate-500">اختر من جامعة واحدة إلى أربع جامعات.</p><div className="mt-3 grid gap-2 sm:grid-cols-2">{universities.map((item) => <button type="button" key={item.id} onClick={() => setUniversityIds((current) => current.includes(item.id) ? current.filter((id) => id !== item.id) : current.length < 4 ? [...current, item.id] : current)} className={`rounded-xl border p-3 text-right text-sm ${universityIds.includes(item.id) ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-200'}`}>{item.name_ar}</button>)}</div><div className="mt-2 text-xs text-teal-700">{universityIds.length}/4 محددة</div></section><section className="mt-7"><h2 className="font-bold">الأيام المتاحة <span className="font-normal text-slate-400">(اختياري)</span></h2><div className="mt-3 flex flex-wrap gap-2">{days.map((day) => <button type="button" key={day} onClick={() => toggleDay(day)} className={`rounded-lg border px-3 py-2 text-sm ${form.available_days.includes(day) ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-200'}`}>{day}</button>)}</div></section><label className="mt-7 block"><span className="mb-2 block text-sm font-bold">ملاحظات</span><textarea value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} className="h-32 w-full rounded-xl border border-slate-200 p-3" placeholder="أي متطلبات سريرية إضافية..." /></label>{error && <p role="alert" className="mt-5 flex gap-2 rounded-xl bg-red-50 p-3 text-sm text-red-700"><AlertCircle size={18} />{error}</p>}<button type="submit" disabled={saving} className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 px-5 py-3.5 font-bold text-white disabled:opacity-60">{saving ? <Loader2 className="animate-spin" size={19} /> : <Send size={19} />}إرسال الطلب</button></form>}</main><CustomerFooter /></div>;
 };

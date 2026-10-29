@@ -11,3 +11,8 @@ dist-deploy/
 .idea/
 .vscode/
 .firebase/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example

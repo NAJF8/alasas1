@@ -40,7 +40,51 @@ class ReadQuery implements PromiseLike<Result<any>> {
 const authHeaders = async () => { const token = auth.currentUser ? await getIdToken(auth.currentUser, true) : null; return token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }; };
 export const callBackend = async <T = any>(path: string, body?: unknown): Promise<T> => { const response = await fetch(`${apiBaseUrl}${path}`, { method: body === undefined ? 'GET' : 'POST', headers: await authHeaders(), body: body === undefined ? undefined : JSON.stringify(body) }); const data = await response.json().catch(() => ({})); if (!response.ok) throw new Error(data.message || data.error || `Backend request failed (${response.status})`); return data as T; };
 
-const storageApi = { from: (bucket: string) => ({ upload: async (path: string, file: File) => { try { const token = auth.currentUser ? await getIdToken(auth.currentUser, true) : ''; const response = await fetch(`${apiBaseUrl}/api/storage/upload?bucket=${encodeURIComponent(bucket)}&case_id=${encodeURIComponent(path.split('/')[1] || '')}`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': file.type, 'x-file-size': String(file.size) }, body: file }); if (!response.ok) throw new Error(`Upload failed (${response.status})`); const result = await response.json() as { path?: string }; return { data: { path: result.path || path }, error: null }; } catch (error) { return { data: null, error: { message: error instanceof Error ? error.message : String(error) } }; } }, remove: async (paths: string[]) => { try { await callBackend('/api/storage/remove', { bucket, paths }); return { data: null, error: null }; } catch (error) { return { data: null, error: { message: error instanceof Error ? error.message : String(error) } }; } }, getPublicUrl: (path: string) => ({ data: { publicUrl: path } }) }) };
+const storageApi = {
+  from: (bucket: string) => ({
+    upload: async (path: string, file: File) => {
+      try {
+        const token = auth.currentUser ? await getIdToken(auth.currentUser, true) : '';
+        const response = await fetch(`${apiBaseUrl}/api/storage/upload?bucket=${encodeURIComponent(bucket)}&case_id=${encodeURIComponent(path.split('/')[1] || path.split('/')[0] || '')}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': file.type, 'x-file-size': String(file.size), 'x-file-name': encodeURIComponent(file.name || 'medical-image') },
+          body: file,
+        });
+        const result = await response.json().catch(() => ({})) as { image_id?: string; path?: string; signed_url?: string; error?: string; message?: string };
+        if (!response.ok) throw new Error(result.message || result.error || `Upload failed (${response.status})`);
+        return { data: { image_id: result.image_id, path: result.path || path, signed_url: result.signed_url }, error: null };
+      } catch (error) {
+        return { data: null, error: { message: error instanceof Error ? error.message : String(error) } };
+      }
+    },
+    listByCase: async (caseId: string) => {
+      try {
+        const result = await callBackend<{ data: any[] }>(`/api/storage/list?case_id=${encodeURIComponent(caseId)}`);
+        return { data: result.data || [], error: null };
+      } catch (error) {
+        return { data: [], error: { message: error instanceof Error ? error.message : String(error) } };
+      }
+    },
+    createSignedUrl: async (path: string, ttlSeconds = 300) => {
+      try {
+        const result = await callBackend<{ signed_url: string; expires_at: string; image_id: string }>('/api/storage/signed-url', { path, ttl_seconds: ttlSeconds });
+        return { data: { signedUrl: result.signed_url, expiresAt: result.expires_at, imageId: result.image_id }, error: null };
+      } catch (error) {
+        return { data: null, error: { message: error instanceof Error ? error.message : String(error) } };
+      }
+    },
+    remove: async (paths: string[]) => {
+      try {
+        await callBackend('/api/storage/remove', { bucket, paths });
+        return { data: null, error: null };
+      } catch (error) {
+        return { data: null, error: { message: error instanceof Error ? error.message : String(error) } };
+      }
+    },
+    getPublicUrl: (path: string) => ({ data: { publicUrl: path } }),
+  }),
+};
+
 const publicMediaRequest = async (file: File, payload: Record<string, unknown>) => { const token = auth.currentUser ? await getIdToken(auth.currentUser, true) : ''; const bytes = new Uint8Array(await file.arrayBuffer()); let binary = ''; for (let offset = 0; offset < bytes.length; offset += 0x8000) binary += String.fromCharCode(...bytes.subarray(offset, Math.min(offset + 0x8000, bytes.length))); const response = await fetch(`${apiBaseUrl}/api/public-media`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, file_name: file.name, mime_type: file.type, base64: btoa(binary) }) }); const result = await response.json().catch(() => ({})); if (!response.ok) throw new Error(result.message || result.error || `Public media request failed (${response.status})`); return result as { media_id: string; public_url: string; mime_type: string; bytes: number; operation?: string }; };
 const publicMedia = {
   list: async () => callBackend<{ data: any[] }>('/api/public-media'),
@@ -59,6 +103,7 @@ const rpc = async <T = any>(name: string, args: any = {}) => {
     if (name === 'admin_list_manager_invitations') return { data: await listInvitations(), error: null };
     if (name === 'admin_create_manager_invitation') return { data: await callBackend<T>('/api/manager-invite', { email: args.email, role: args.role, permissions: args.permissions }), error: null };
     if (name === 'admin_update_manager') return { data: await callBackend<T>('/api/manager-update', { profile_id: args.p_profile_id, role: args.p_role, status: args.p_status, permissions: args.p_permissions }), error: null };
+    if (name === 'admin_accept_manager_invitation') return { data: await callBackend<T>('/api/manager-accept', { invitation_id: args.p_invitation_id || args.invitation_id }), error: null };
     throw new Error(`Firebase Worker route not implemented: ${name}`);
   } catch (error) { return { data: null, error: { message: error instanceof Error ? error.message : String(error) } }; }
 };
@@ -75,5 +120,23 @@ export const firebaseData: any = {
     };
   },
   rpc,
-  functions: { invoke: async <T = any>(name: string, options?: { body?: unknown }) => { const routes: Record<string, string> = { 'admin-invite-manager': '/api/manager-invite', 'registration-admin': '/api/registration-admin', 'case-approval': '/api/case-approval', 'student-request-review': '/api/student-request-review', match: '/api/match', 'complete-treatment': '/api/complete-treatment' }; return routes[name] ? { data: await callBackend<T>(routes[name], options?.body), error: null } : rpc<T>(name, options?.body); } },
+  functions: {
+    invoke: async <T = any>(name: string, options?: { body?: unknown }) => {
+      try {
+        const routes: Record<string, string> = {
+          'admin-invite-manager': '/api/manager-invite',
+          'registration-admin': '/api/registration-admin',
+          'admin-user-update': '/api/admin-user-update',
+          'profile-update': '/api/profile-update',
+          'case-approval': '/api/case-approval',
+          'student-request-review': '/api/student-request-review',
+          match: '/api/match',
+          'complete-treatment': '/api/complete-treatment',
+        };
+        return routes[name] ? { data: await callBackend<T>(routes[name], options?.body), error: null } : await rpc<T>(name, options?.body);
+      } catch (error) {
+        return { data: null, error: { message: error instanceof Error ? error.message : String(error) } };
+      }
+    },
+  },
 };

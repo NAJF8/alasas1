@@ -1,8 +1,9 @@
-import { Bell, MessageCircle, Menu, X } from 'lucide-react';
+import { Bell, MessageCircle, Menu, UserCog, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { isProfileComplete, useAuth } from '../../context/AuthContext';
 import { useBranding } from '../../context/BrandingContext';
+import { PreferencesControls } from './PreferencesBar';
 
 export const Header = () => {
   const [open, setOpen] = useState(false);
@@ -30,6 +31,7 @@ export const Header = () => {
         <Link to="/faq" onClick={close}>الأسئلة الشائعة</Link>
         {user && !loading ? <>
           <Link className="mobile-account-link" to={complete ? '/dashboard' : '/onboarding'} onClick={close}>{complete ? 'حسابي' : 'أكمل حسابك'}</Link>
+          {complete && <Link className="mobile-account-link" to="/profile" onClick={close}>الملف الشخصي</Link>}
           <button className="mobile-logout" onClick={logout}>تسجيل الخروج</button>
         </> : <>
           <Link className="mobile-auth-link" to="/login" onClick={close}>تسجيل الدخول</Link>
@@ -37,6 +39,7 @@ export const Header = () => {
         </>}
       </nav>
       <div className="header-actions">
+        <PreferencesControls compact />
         <Link className="icon-button" to={user ? (profile?.role === 'STUDENT' ? '/student/search' : '/patient/dashboard') : '/login'} aria-label="الإشعارات"><Bell size={19} /></Link>
         {loading || !user ? <>
           <Link className="header-login" to="/login">تسجيل الدخول</Link>
@@ -44,6 +47,7 @@ export const Header = () => {
         </> : <>
           <span className="header-greeting">أهلاً، {name}</span>
           <Link className="header-login" to={complete ? '/dashboard' : '/onboarding'}>{complete ? 'حسابي' : 'أكمل حسابك'}</Link>
+          {complete && <Link className="header-login inline-flex items-center gap-1" to="/profile" aria-label="تعديل الملف الشخصي"><UserCog size={15} /> الملف الشخصي</Link>}
           {isAuthorizedAdmin && <a className="header-login" href="/admin/">لوحة الإدارة</a>}
           <button className="header-logout" onClick={logout}>تسجيل الخروج</button>
         </>}

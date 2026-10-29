@@ -31,3 +31,5 @@ export const getActiveClinicalCategories = () => {
   }));
   return categoriesPromise;
 };
+
+export const getActiveCategories = getActiveClinicalCategories;
