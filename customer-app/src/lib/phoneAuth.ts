@@ -20,6 +20,6 @@ export const formatPhoneAuthError = (message: string) => {
   if (/rate|too many|429|sms/i.test(message)) return 'تعذر إرسال الرمز الآن. انتظر قليلاً ثم أعد المحاولة.';
   if (/expired|otp/i.test(message)) return 'رمز التحقق غير صالح أو انتهت صلاحيته. اطلب رمزاً جديداً.';
   if (/not found|does not exist|invalid login|user.*phone/i.test(message)) return 'تعذر إكمال التحقق. تحقق من البيانات أو سجّل حساباً جديداً.';
-  if (/phone provider|sms/i.test(message)) return 'مزود الرسائل غير مفعّل حالياً في Supabase. لم يتم الادعاء بأن تسجيل الهاتف يعمل.';
+  if (/phone provider|sms/i.test(message)) return 'مزود الرسائل غير مفعّل حالياً في Firebase. لم يتم الادعاء بأن تسجيل الهاتف يعمل.';
   return message;
 };

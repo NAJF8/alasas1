@@ -1,0 +1,79 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "universities",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "has_dental_college", "order": "ASCENDING" },
+        { "fieldPath": "is_active", "order": "ASCENDING" },
+        { "fieldPath": "name_ar", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "universities",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "is_active", "order": "DESCENDING" },
+        { "fieldPath": "name_ar", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "provinces",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "is_active", "order": "ASCENDING" },
+        { "fieldPath": "name_ar", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "provinces",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "is_active", "order": "DESCENDING" },
+        { "fieldPath": "name_ar", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "areas",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "province_id", "order": "ASCENDING" },
+        { "fieldPath": "is_active", "order": "ASCENDING" },
+        { "fieldPath": "name_ar", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "patient_cases",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "patient_id", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "student_requests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "student_id", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "user_id", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "appointments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "patient_id", "order": "ASCENDING" },
+        { "fieldPath": "appointment_date", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

@@ -1,12 +1,12 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { firebaseData as supabase } from '../lib/firebaseData';
 
-export type SiteBranding = { platform_arabic_name: string; platform_english_name: string; short_name: string; logo_url: string | null; favicon_url: string | null; customer_header_logo_url: string | null; hero_image_url?: string | null; hero_title_ar?: string | null; hero_subtitle_ar?: string | null; site_description?: string | null; main_brand_color: string; secondary_color: string; accent_color: string; footer_text: string };
-const fallback: SiteBranding = { platform_arabic_name: 'أسنان الأساس', platform_english_name: 'Asnas Al-Asas', short_name: 'الأساس', logo_url: null, favicon_url: null, customer_header_logo_url: null, hero_image_url: null, hero_title_ar: null, hero_subtitle_ar: null, site_description: null, main_brand_color: '#0d9f87', secondary_color: '#123d73', accent_color: '#12a895', footer_text: 'رعاية أسنان أفضل بالتعاون مع جامعات العراق.' };
+export type SiteBranding = { platform_arabic_name: string; platform_english_name: string; short_name: string; logo_url: string | null; favicon_url: string | null; customer_header_logo_url: string | null; whatsapp?: string | null; whatsapp_label_ar?: string | null; whatsapp_label_en?: string | null; whatsapp_message?: string | null; whatsapp_enabled?: boolean; hero_image_url?: string | null; hero_title_ar?: string | null; hero_subtitle_ar?: string | null; site_description?: string | null; main_brand_color: string; secondary_color: string; accent_color: string; footer_text: string };
+const fallback: SiteBranding = { platform_arabic_name: 'أسنان الأساس', platform_english_name: 'Asnas Al-Asas', short_name: 'الأساس', logo_url: null, favicon_url: null, customer_header_logo_url: null, whatsapp: null, whatsapp_label_ar: 'تواصل معنا', whatsapp_label_en: 'Contact us', whatsapp_message: 'مرحباً، أحتاج مساعدة بخصوص منصة أسنان الأساس', whatsapp_enabled: true, hero_image_url: null, hero_title_ar: null, hero_subtitle_ar: null, site_description: null, main_brand_color: '#0d9f87', secondary_color: '#123d73', accent_color: '#12a895', footer_text: 'رعاية أسنان أفضل بالتعاون مع جامعات العراق.' };
 const BrandingContext = createContext<SiteBranding>(fallback);
 let brandingPromise: Promise<SiteBranding> | null = null;
 const loadBranding = () => {
-  if (!brandingPromise) brandingPromise = Promise.resolve(supabase.from('branding_settings').select('platform_arabic_name,platform_english_name,short_name,logo_url,favicon_url,customer_header_logo_url,main_brand_color,secondary_color,accent_color,footer_text').maybeSingle().then(({ data, error }) => {
+  if (!brandingPromise) brandingPromise = Promise.resolve(supabase.from('branding_settings').select('platform_arabic_name,platform_english_name,short_name,logo_url,favicon_url,customer_header_logo_url,whatsapp,whatsapp_label_ar,whatsapp_label_en,whatsapp_message,whatsapp_enabled,main_brand_color,secondary_color,accent_color,footer_text').maybeSingle().then(({ data, error }) => {
     if (error) { console.error('Branding load failed:', error.message); return fallback; }
     return { ...fallback, ...(data || {}) } as SiteBranding;
   }));

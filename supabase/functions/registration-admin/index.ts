@@ -11,6 +11,7 @@ const whatsapp = (phone: string, name: string) => {
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: cors })
+  if (request.method !== 'POST') return json({ error: 'طريقة الطلب غير مدعومة.' }, 405)
   try {
     const authorization = request.headers.get('Authorization')
     if (!authorization?.startsWith('Bearer ')) return json({ error: 'جلسة مدير مطلوبة.' }, 401)
@@ -25,16 +26,18 @@ Deno.serve(async (request) => {
     if (!actor || !['ADMIN', 'SUPER_ADMIN'].includes(actor.role) || actor.status !== 'VERIFIED') return json({ error: 'لا تملك صلاحية إدارة طلبات التسجيل.' }, 403)
     const body = await request.json() as { action?: string; request_id?: string; reason?: string }
     if (body.action === 'list') {
-      const { data, error } = await adminClient.from('registration_requests').select('id,full_name,phone_e164,role,gender,province_id,university_id,stage,status,rejection_reason,reviewed_at,created_at').order('created_at', { ascending: false }).limit(100)
+      const { data, error } = await adminClient.from('registration_requests').select('id,full_name,phone_e164,role,gender,province_id,area_id,birth_date,university_id,stage,status,rejection_reason,reviewed_at,created_at').order('created_at', { ascending: false }).limit(100)
       if (error) return json({ error: 'تعذر تحميل الطلبات.' }, 500)
-      return json({ requests: data || [] })
+      return json({ requests: (data || []).map((item) => ({ ...item, whatsapp_url: item.status === 'VERIFIED' ? whatsapp(item.phone_e164, item.full_name) : null })) })
     }
     if (!body.request_id || !['approve', 'reject'].includes(body.action || '')) return json({ error: 'عملية غير صحيحة.' }, 400)
     const nextStatus = body.action === 'approve' ? 'VERIFIED' : 'REJECTED'
     const { data: updated, error } = await adminClient.rpc('review_registration_request', { p_request_id: body.request_id, p_next_status: nextStatus, p_actor_id: userData.user.id, p_rejection_reason: body.reason || null })
     if (error || !updated?.[0]) return json({ error: error?.code === 'P0001' ? 'الطلب غير موجود أو تمت معالجته سابقاً.' : 'فشل حفظ القرار.' }, error?.code === 'P0001' ? 409 : 500)
     const saved = updated[0]
-    return json({ request_id: saved.id, status: saved.status, reviewed_at: saved.reviewed_at, activation: 'PENDING_VERIFICATION', whatsapp_url: nextStatus === 'VERIFIED' ? whatsapp(saved.phone_e164, saved.full_name) : null })
+    const { data: readback, error: readbackError } = await adminClient.from('registration_requests').select('id,status,reviewed_at,full_name,phone_e164').eq('id', saved.id).single()
+    if (readbackError || !readback || readback.status !== nextStatus) return json({ error: 'تم القرار دون Readback مؤكد.' }, 503)
+    return json({ request_id: readback.id, status: readback.status, reviewed_at: readback.reviewed_at, activation: 'PENDING_VERIFICATION', whatsapp_url: nextStatus === 'VERIFIED' ? whatsapp(readback.phone_e164, readback.full_name) : null })
   } catch (error) {
     console.error('registration-admin', error)
     return json({ error: 'تعذر إكمال العملية.' }, 500)

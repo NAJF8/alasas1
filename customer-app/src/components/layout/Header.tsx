@@ -1,8 +1,9 @@
-import { Bell, Menu, X } from 'lucide-react';
+import { Bell, MessageCircle, Menu, UserCog, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { isProfileComplete, useAuth } from '../../context/AuthContext';
 import { useBranding } from '../../context/BrandingContext';
+import { PreferencesControls } from './PreferencesBar';
 
 export const Header = () => {
   const [open, setOpen] = useState(false);
@@ -10,13 +11,16 @@ export const Header = () => {
   const branding = useBranding();
   const name = profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || 'مستخدم';
   const complete = isProfileComplete(profile);
+  const isAuthorizedAdmin = Boolean(profile && profile.status === 'VERIFIED' && ['ADMIN', 'SUPER_ADMIN', 'STAFF'].includes(profile.role));
   const close = () => setOpen(false);
   const logout = () => { void signOut(); close(); };
 
-  return <header className="customer-header">
+  const supportNumber = String(branding.whatsapp || '').replace(/\D/g, '');
+  const supportUrl = branding.whatsapp_enabled !== false && supportNumber ? `https://wa.me/${supportNumber}?text=${encodeURIComponent(branding.whatsapp_message || 'مرحباً، أحتاج مساعدة بخصوص منصة أسنان الأساس')}` : null;
+  return <><header className="customer-header">
     <div className="header-inner">
       <Link to="/" className="brand-lockup" onClick={close}>
-        {branding.customer_header_logo_url || branding.logo_url ? <img className="brand-image" src={branding.customer_header_logo_url || branding.logo_url || ''} alt={branding.platform_arabic_name} /> : <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>}
+        <img className="brand-image official-brand-logo" src={branding.customer_header_logo_url || branding.logo_url || '/brand/official-logo-light.png'} alt="شعار الأساس" />
         <span>{branding.platform_arabic_name}<small>{branding.platform_english_name}</small></span>
       </Link>
       <nav className={open ? 'header-nav is-open' : 'header-nav'}>
@@ -27,6 +31,7 @@ export const Header = () => {
         <Link to="/faq" onClick={close}>الأسئلة الشائعة</Link>
         {user && !loading ? <>
           <Link className="mobile-account-link" to={complete ? '/dashboard' : '/onboarding'} onClick={close}>{complete ? 'حسابي' : 'أكمل حسابك'}</Link>
+          {complete && <Link className="mobile-account-link" to="/profile" onClick={close}>الملف الشخصي</Link>}
           <button className="mobile-logout" onClick={logout}>تسجيل الخروج</button>
         </> : <>
           <Link className="mobile-auth-link" to="/login" onClick={close}>تسجيل الدخول</Link>
@@ -34,6 +39,7 @@ export const Header = () => {
         </>}
       </nav>
       <div className="header-actions">
+        <PreferencesControls compact />
         <Link className="icon-button" to={user ? (profile?.role === 'STUDENT' ? '/student/search' : '/patient/dashboard') : '/login'} aria-label="الإشعارات"><Bell size={19} /></Link>
         {loading || !user ? <>
           <Link className="header-login" to="/login">تسجيل الدخول</Link>
@@ -41,10 +47,12 @@ export const Header = () => {
         </> : <>
           <span className="header-greeting">أهلاً، {name}</span>
           <Link className="header-login" to={complete ? '/dashboard' : '/onboarding'}>{complete ? 'حسابي' : 'أكمل حسابك'}</Link>
+          {complete && <Link className="header-login inline-flex items-center gap-1" to="/profile" aria-label="تعديل الملف الشخصي"><UserCog size={15} /> الملف الشخصي</Link>}
+          {isAuthorizedAdmin && <a className="header-login" href="/admin/">لوحة الإدارة</a>}
           <button className="header-logout" onClick={logout}>تسجيل الخروج</button>
         </>}
         <button className="menu-button" onClick={() => setOpen((current) => !current)} aria-label="القائمة">{open ? <X size={21} /> : <Menu size={21} />}</button>
       </div>
     </div>
-  </header>;
+  </header>{supportUrl && <a className="customer-support-fab" href={supportUrl} target="_blank" rel="noopener noreferrer" aria-label={branding.whatsapp_label_ar || 'تواصل معنا'}><MessageCircle size={20} /><span>{branding.whatsapp_label_ar || 'تواصل معنا'}</span></a>}</>;
 };

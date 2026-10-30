@@ -1,0 +1,47 @@
+{
+  "auth": {
+    "authorizedDomains": [
+      "localhost",
+      "al-asas-dental-staging.web.app",
+      "al-asas-dental-admin.web.app",
+      "al-asas-dental-prod.web.app",
+      "al-asas-dental-prod.firebaseapp.com",
+      "dental.alasas.tech"
+    ],
+    "providers": {
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "AL ASAS DENTAL",
+        "supportEmail": "alasastech0@gmail.com"
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "hosting": [
+    {
+      "target": "unified",
+      "public": "dist-deploy",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "headers": [
+        {
+          "source": "**/index.html",
+          "headers": [
+            { "key": "Cache-Control", "value": "no-cache, no-store, max-age=0, must-revalidate" }
+          ]
+        }
+      ],
+      "rewrites": [
+        { "source": "/admin/**", "destination": "/admin/index.html" },
+        { "source": "**", "destination": "/index.html" }
+      ]
+    },
+    {
+      "target": "legacy-admin",
+      "public": "legacy-admin-redirect",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"]
+    }
+  ]
+}

@@ -1,115 +1,19 @@
-import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
-import type { User, Session } from '@supabase/supabase-js';
-import { getOAuthRedirectUrl, supabase } from '../lib/supabase';
-
-interface Profile {
-  id: string;
-  role: string;
-  status: string;
-  full_name: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  profile: Profile | null;
-  loading: boolean;
-  isAdmin: boolean;
-  signInWithGoogle: () => Promise<{ error: string | null }>;
-  signOut: () => Promise<void>;
-}
-
-const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN', 'STAFF'] as const;
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { getRedirectResult, onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, type AuthError, type User } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, authPersistenceReady, db, googleProvider } from '../lib/firebase';
+interface Profile { id: string; role: string; status: string; full_name: string; }
+interface AuthContextType { user: User | null; profile: Profile | null; loading: boolean; profileError: string | null; authError: string | null; isAdmin: boolean; signInWithGoogle: () => Promise<{ error: string | null }>; signOut: () => Promise<void>; }
+const AuthContext = createContext<AuthContextType | undefined>(undefined); const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN', 'STAFF'] as const;
+const AUTH_TIMEOUT_MS = 15000;
+const withTimeout = <T,>(promise: Promise<T>, message: string) => Promise.race([promise, new Promise<T>((_, reject) => window.setTimeout(() => reject(new Error(message)), AUTH_TIMEOUT_MS))]);
+const authMessage = (error: unknown) => { const code = (error as AuthError)?.code; if (code === 'auth/popup-blocked') return 'منع المتصفح نافذة Google. اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد المحاولة.'; if (code === 'auth/popup-closed-by-user') return 'أُغلقت نافذة Google قبل اكتمال تسجيل الدخول.'; if (code === 'auth/unauthorized-domain') return 'هذا النطاق غير مضاف إلى Authorized Domains في Firebase.'; if (code === 'auth/cancelled-popup-request') return 'يوجد طلب Google آخر قيد التنفيذ. انتظر لحظات ثم أعد المحاولة.'; if (error instanceof Error && error.message) return error.message; return 'تعذر إكمال تسجيل الدخول باستخدام Google.'; };
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const profileCache = useRef(new Map<string, Profile | null>());
-
-  const fetchProfile = async (userId: string): Promise<Profile | null> => {
-    if (profileCache.current.has(userId)) return profileCache.current.get(userId) || null;
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, role, status, full_name')
-        .eq('id', userId)
-        .single();
-
-      if (error) {
-        console.error('Profile fetch error:', error.message);
-        return null;
-      }
-      const nextProfile = data as Profile;
-      profileCache.current.set(userId, nextProfile);
-      return nextProfile;
-    } catch (err) {
-      console.error('Profile fetch exception:', err);
-      return null;
-    }
-  };
-
-  const handleSession = useCallback(async (session: Session | null) => {
-    if (!session?.user) {
-      setUser(null);
-      setProfile(null);
-      setLoading(false);
-      return;
-    }
-
-    // Keep loading=true while we fetch the profile
-    setLoading(true);
-    setUser(session.user);
-
-    const prof = await fetchProfile(session.user.id);
-    setProfile(prof);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    // Register the listener before reading the current session so OAuth callback events cannot be missed.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        void handleSession(session);
-      }
-    );
-    void supabase.auth.getSession().then(({ data: { session } }) => handleSession(session));
-
-    return () => subscription.unsubscribe();
-  }, [handleSession]);
-
-  const signInWithGoogle = async (): Promise<{ error: string | null }> => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: getOAuthRedirectUrl() },
-    });
-    return { error: error?.message ?? null };
-  };
-
-  const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setProfile(null);
-    profileCache.current.clear();
-  }, []);
-
-  const isAdmin =
-    !!profile &&
-    profile.status === 'VERIFIED' &&
-    ADMIN_ROLES.includes(profile.role as typeof ADMIN_ROLES[number]);
-
-  return (
-    <AuthContext.Provider value={{ user, profile, loading, isAdmin, signInWithGoogle, signOut }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const [user, setUser] = useState<User | null>(null); const [profile, setProfile] = useState<Profile | null>(null); const [loading, setLoading] = useState(true); const [profileError, setProfileError] = useState<string | null>(null); const [authError, setAuthError] = useState<string | null>(null); const loadId = useRef(0);
+  const load = useCallback(async (next: User | null) => { const currentId = ++loadId.current; setUser(next); setProfileError(null); if (!next) { setProfile(null); setLoading(false); return; } setLoading(true); try { const snapshot = await withTimeout(getDoc(doc(db, 'profiles', next.uid)), 'انتهت مهلة قراءة ملف الإدارة من Firebase. تحقق من الاتصال ثم أعد المحاولة.'); if (currentId !== loadId.current) return; setProfile(snapshot.exists() ? ({ id: next.uid, ...snapshot.data() } as Profile) : null); if (!snapshot.exists()) setProfileError('لم يتم العثور على ملف إدارة موثق لهذا الحساب. لم يتم منح أي دور تلقائياً.'); } catch (error) { if (currentId !== loadId.current) return; setProfile(null); setProfileError(error instanceof Error ? error.message : 'تعذر قراءة ملف الإدارة من Firebase.'); } finally { if (currentId === loadId.current) setLoading(false); } }, []);
+  useEffect(() => { let active = true; let unsubscribe: () => void = () => undefined; const start = async () => { try { await withTimeout(authPersistenceReady, 'انتهت مهلة تهيئة جلسة Firebase Auth.'); if (!active) return; try { await withTimeout(getRedirectResult(auth), 'انتهت مهلة نتيجة Google Redirect.'); } catch (error) { if (active && (error as AuthError)?.code !== 'auth/no-auth-event') setAuthError(authMessage(error)); } unsubscribe = onAuthStateChanged(auth, (next) => { void load(next); }); } catch (error) { if (active) { setAuthError(authMessage(error)); setLoading(false); } } }; void start(); return () => { active = false; unsubscribe(); }; }, [load]);
+  const signInWithGoogle = async () => { setAuthError(null); setProfileError(null); setLoading(true); try { await withTimeout(signInWithPopup(auth, googleProvider), 'لم تكتمل نافذة Google خلال 15 ثانية. تحقق من النوافذ المنبثقة وملفات الارتباط ثم أعد المحاولة.'); return { error: null }; } catch (error) { const message = authMessage(error); setAuthError(message); setLoading(false); return { error: message }; } };
+  const signOut = async () => { await firebaseSignOut(auth); ++loadId.current; setUser(null); setProfile(null); setProfileError(null); setAuthError(null); setLoading(false); };
+  const isAdmin = Boolean(profile && profile.status === 'VERIFIED' && ADMIN_ROLES.includes(profile.role as any)); return <AuthContext.Provider value={{ user, profile, loading, profileError, authError, isAdmin, signInWithGoogle, signOut }}>{children}</AuthContext.Provider>;
 };
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+export const useAuth = () => { const context = useContext(AuthContext); if (!context) throw new Error('useAuth must be used within an AuthProvider'); return context; };

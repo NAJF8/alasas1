@@ -4,6 +4,6 @@ import { defineConfig } from 'vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // The admin app is copied into the /admin/ Pages subdirectory.
+  // The independent Admin build is mounted at the unified site's /admin/ path.
   base: '/admin/',
 })

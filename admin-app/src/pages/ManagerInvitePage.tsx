@@ -1,7 +1,7 @@
 import { CheckCircle2, Loader2, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
+import { firebaseData as supabase } from '../lib/firebaseData';
 
 export const ManagerInvitePage = () => {
   const { user, loading, signInWithGoogle } = useAuth();

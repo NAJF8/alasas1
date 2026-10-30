@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head><meta charset="UTF-8" /><meta name="robots" content="noindex" /><title>جارٍ تحويل لوحة الإدارة</title></head>
+  <body>
+    <p>جارٍ تحويلك إلى لوحة الإدارة الموحدة…</p>
+    <noscript><a href="https://al-asas-dental-staging.web.app/admin/">فتح لوحة الإدارة</a></noscript>
+    <script>
+      (() => {
+        const unifiedOrigin = 'https://al-asas-dental-staging.web.app';
+        const rawHash = window.location.hash.replace(/^#/, '');
+        const hashPath = rawHash.startsWith('/') ? rawHash : '';
+        const customerPaths = ['/student/', '/patient/', '/login', '/register', '/onboarding', '/dashboard'];
+        const isCustomerPath = customerPaths.some((prefix) => hashPath === prefix.slice(0, -1) || hashPath.startsWith(prefix));
+        const destinationPath = isCustomerPath ? (hashPath || '/') : `/admin${hashPath === '/' ? '/' : hashPath || '/'}`;
+        const destination = new URL(destinationPath, unifiedOrigin);
+        if (!destination.search && window.location.search) destination.search = window.location.search;
+        window.location.replace(destination.toString());
+      })();
+    </script>
+  </body>
+</html>

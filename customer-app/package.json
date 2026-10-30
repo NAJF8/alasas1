@@ -1,7 +1,7 @@
 {
   "name": "customer-app",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.5.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,8 +13,8 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
-    "@supabase/supabase-js": "^2.117.3",
     "clsx": "^2.1.1",
+    "firebase": "^13.0.0",
     "framer-motion": "^14.0.0",
     "lucide-react": "^1.52.0",
     "react": "^19.2.8",
