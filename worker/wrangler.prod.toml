@@ -1,0 +1,15 @@
+name = "alasas-dental-prod-worker"
+main = "src/index.ts"
+compatibility_date = "2026-10-21"
+workers_dev = true
+
+[vars]
+FIREBASE_PROJECT_ID = "al-asas-dental-prod"
+ALLOWED_ORIGINS = "https://dental.alasas.tech,https://al-asas-dental-prod.web.app,https://al-asas-dental-prod.firebaseapp.com"
+RELEASE_SHA = "7615f03"
+GITHUB_ASSET_REPOSITORY = "NAJF8/al-asas-assets"
+
+# Required production secrets:
+# - FIREBASE_SERVICE_ACCOUNT_JSON: Service Account JSON for `al-asas-dental-prod`
+# Deploy command:
+#   `npx wrangler deploy --config wrangler.prod.toml`

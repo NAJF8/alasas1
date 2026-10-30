@@ -8,18 +8,3 @@ FIREBASE_PROJECT_ID = "al-asas-dental-staging"
 ALLOWED_ORIGINS = "https://al-asas-dental-staging.web.app,https://al-asas-dental-admin.web.app,http://localhost:5173,http://localhost:5174,http://127.0.0.1:4173,http://127.0.0.1:4174"
 RELEASE_SHA = "7615f03"
 GITHUB_ASSET_REPOSITORY = "NAJF8/al-asas-assets"
-
-[env.production]
-name = "alasas-dental-prod-worker"
-workers_dev = true
-
-[env.production.vars]
-FIREBASE_PROJECT_ID = "al-asas-dental-prod"
-ALLOWED_ORIGINS = "https://dental.alasas.tech,https://al-asas-dental-prod.web.app,https://al-asas-dental-prod.firebaseapp.com"
-RELEASE_SHA = "7615f03"
-GITHUB_ASSET_REPOSITORY = "NAJF8/al-asas-assets"
-
-# Secrets required for each environment:
-# - FIREBASE_SERVICE_ACCOUNT_JSON (put via `wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON`)
-# For production worker:
-#   `wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON --env production`
