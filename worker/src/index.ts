@@ -327,6 +327,18 @@ const profileUpdate = async (request: Request, env: Env, actor: Claims) => {
   const existing = fromDoc(existingDoc) as Record<string, any> | null;
   if (!existing) error('PROFILE_NOT_FOUND', 404);
   const role = String(existing.role || '');
+  if (role !== 'PATIENT' && role !== 'STUDENT') {
+    error('FORBIDDEN', 403);
+  }
+  const forbiddenKeys = [
+    'role', 'status', 'permissions', 'uid', 'id', 'email', 'emailVerified',
+    'created_at', 'is_super_admin', 'user_id', 'target_uid', 'target_id'
+  ];
+  for (const key of forbiddenKeys) {
+    if (input[key] !== undefined) {
+      error('FORBIDDEN_FIELD_MODIFICATION', 403);
+    }
+  }
   const fullName = input.full_name !== undefined ? String(input.full_name || '').trim() : String(existing.full_name || '').trim();
   if (fullName.length < 2 || fullName.length > 160) error('INVALID_PROFILE', 400);
   const whatsappRaw = input.whatsapp !== undefined ? String(input.whatsapp || '').trim() : String(existing.whatsapp || '').trim();

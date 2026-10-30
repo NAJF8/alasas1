@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, Loader2, Save, University, UserRound } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, Save, ShieldAlert, University, UserRound } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { Header } from '../components/layout/Header';
@@ -89,6 +89,43 @@ export const ProfilePage = () => {
     );
   }
   if (!user || !profile) return <Navigate to="/login" replace />;
+
+  const isCustomer = profile.role === 'PATIENT' || profile.role === 'STUDENT';
+  if (!isCustomer) {
+    return (
+      <div className="customer-app-page min-h-screen bg-slate-50" dir="rtl">
+        <Header />
+        <main className="customer-app-main mx-auto max-w-xl px-4 py-16 sm:px-6">
+          <div className="rounded-3xl bg-white p-8 shadow-sm text-center border border-slate-200">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+              <ShieldAlert size={32} />
+            </div>
+            <h1 className="text-2xl font-black text-slate-900">حساب إداري محمي</h1>
+            <p className="mt-3 text-sm leading-relaxed text-slate-600">
+              هذا الحساب يملك صلاحيات إدارية ({profile.role === 'SUPER_ADMIN' ? 'مدير عام Super Admin' : profile.role === 'ADMIN' ? 'مدير نظام Admin' : 'فريق عمل Staff'}).
+              <br />
+              إدارة الحسابات وتعديل البيانات الإدارية تتم حصراً عبر لوحة الإدارة، ولا يمكن تعديلها من واجهة المرضى والطلاب لحماية الأمان المؤسسي.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+              <a
+                href="/admin/"
+                className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-6 py-3 font-bold text-white hover:bg-slate-800 transition-colors"
+              >
+                الانتقال إلى لوحة الإدارة
+              </a>
+              <Link
+                to="/"
+                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-3 font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                الصفحة الرئيسية
+              </Link>
+            </div>
+          </div>
+        </main>
+        <CustomerFooter />
+      </div>
+    );
+  }
 
   const isStudent = profile.role === 'STUDENT';
 

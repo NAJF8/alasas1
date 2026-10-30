@@ -73,3 +73,18 @@ test('new patient cases remain private until an Admin approval publishes them', 
   assert.match(source, /next === 'WAITING_FOR_MATCH'/);
   assert.match(source, /CASE_ALREADY_MATCHED/);
 });
+
+test('profile-update rejects non-customer roles, forbidden fields, and binds strictly to actor', async () => {
+  const source = await readFile(new URL('./index.ts', import.meta.url), 'utf8');
+  // Rejects any role other than PATIENT or STUDENT
+  assert.match(source, /if \(role !== 'PATIENT' && role !== 'STUDENT'\) \{\s*error\('FORBIDDEN', 403\);/);
+  // Rejects forbidden administrative / tampering fields
+  assert.match(source, /forbiddenKeys = \[[\s\S]*?'role',[\s\S]*?'status',[\s\S]*?'permissions',[\s\S]*?'uid'/);
+  assert.match(source, /error\('FORBIDDEN_FIELD_MODIFICATION', 403\)/);
+  // Transaction updates only the authenticated actor's own document
+  assert.match(source, /writeUpdate\(env, 'profiles', actor\.sub, updates/);
+  // Admin routes enforce admin / super admin roles
+  assert.match(source, /await requireRole\(env, actor, \['ADMIN', 'SUPER_ADMIN'\]\)/);
+  // Super Admin cannot be suspended or downgraded
+  assert.match(source, /if \(current\.role === 'SUPER_ADMIN' \|\| String\(current\.email \|\| ''\)\.toLowerCase\(\) === 'mohameadalhaear100@gmail\.com'\) error\('FORBIDDEN', 403\);/);
+});

@@ -81,9 +81,10 @@ service cloud.firestore {
           'birth_date', 'province_id', 'area_id', 'university_id', 'stage',
           'workplace', 'preferred_university_ids', 'created_at', 'updated_at'
         ]);
-      allow update: if superAdmin()
+      allow update: if (superAdmin() && resource.data.role != 'SUPER_ADMIN' && request.auth.uid != uid)
         || (signedIn()
           && request.auth.uid == uid
+          && resource.data.role in ['PATIENT', 'STUDENT']
           && request.resource.data.id == resource.data.id
           && request.resource.data.role == resource.data.role
           && request.resource.data.status == resource.data.status
@@ -93,7 +94,7 @@ service cloud.firestore {
             'province_id', 'area_id', 'university_id', 'stage', 'workplace',
             'preferred_university_ids', 'updated_at'
           ]));
-      allow delete: if superAdmin();
+      allow delete: if superAdmin() && resource.data.role != 'SUPER_ADMIN' && request.auth.uid != uid;
     }
 
     match /patient_preferred_universities/{id} {

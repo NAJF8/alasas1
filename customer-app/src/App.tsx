@@ -70,6 +70,9 @@ const DashboardRoute = () => {
   if (!user) return <Navigate to="/login" replace />;
   if (profileError) return <ProfileLoadError message={profileError} retry={() => void refreshProfile()} />;
   if (!profile) return <Navigate to="/register" replace />;
+  if (['ADMIN', 'SUPER_ADMIN', 'STAFF'].includes(profile.role)) {
+    return <Navigate to="/" replace />;
+  }
   if (!isProfileComplete(profile)) return <IncompleteProfileNotice />;
   if (profile.status === 'SUSPENDED') return <AccountStatus />;
   if (profile.role === 'STUDENT' && profile.status !== 'VERIFIED') return <Navigate to="/student/verification" replace />;
@@ -85,6 +88,9 @@ const ProtectedDashboard = ({ role, children }: { role: CustomerRole; children: 
   if (!user) return <Navigate to="/login" replace />;
   if (profileError) return <ProfileLoadError message={profileError} retry={() => void refreshProfile()} />;
   if (!profile) return <Navigate to="/register" replace />;
+  if (['ADMIN', 'SUPER_ADMIN', 'STAFF'].includes(profile.role)) {
+    return <Navigate to="/" replace />;
+  }
   if (!isProfileComplete(profile)) return <IncompleteProfileNotice />;
   if (profile.status === 'SUSPENDED') return <AccountStatus />;
   if (role === 'STUDENT' && profile.status !== 'VERIFIED') return <Navigate to="/student/verification" replace />;
