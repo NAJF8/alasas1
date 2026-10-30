@@ -6,16 +6,20 @@ workers_dev = true
 [vars]
 FIREBASE_PROJECT_ID = "al-asas-dental-staging"
 ALLOWED_ORIGINS = "https://al-asas-dental-staging.web.app,https://al-asas-dental-admin.web.app,http://localhost:5173,http://localhost:5174,http://127.0.0.1:4173,http://127.0.0.1:4174"
-RELEASE_SHA = "a763235"
+RELEASE_SHA = "052c3a4"
 GITHUB_ASSET_REPOSITORY = "NAJF8/al-asas-assets"
 
-# Add this only with `wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON`.
-# Never commit the service-account JSON or a private key.
+[env.production]
+name = "alasas-dental-prod-worker"
+workers_dev = true
 
-# R2 is intentionally disabled for this Staging release. The Worker keeps
-# image routes fail-closed with R2_NOT_CONFIGURED until a separately approved
-# storage path exists; no paid bucket is provisioned here.
+[env.production.vars]
+FIREBASE_PROJECT_ID = "al-asas-dental-prod"
+ALLOWED_ORIGINS = "https://dental.alasas.tech,https://al-asas-dental-prod.web.app,https://al-asas-dental-prod.firebaseapp.com"
+RELEASE_SHA = "052c3a4"
+GITHUB_ASSET_REPOSITORY = "NAJF8/al-asas-assets"
 
-# Public media uses a GitHub App only after these values are configured as
-# Cloudflare secrets. No token or private key belongs in this file.
-# GITHUB_ASSET_REPOSITORY = "owner/private-public-assets"
+# Secrets required for each environment:
+# - FIREBASE_SERVICE_ACCOUNT_JSON (put via `wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON`)
+# For production worker:
+#   `wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON --env production`

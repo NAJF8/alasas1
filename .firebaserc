@@ -1,12 +1,25 @@
 {
   "projects": {
-    "default": "al-asas-dental-staging"
+    "default": "al-asas-dental-staging",
+    "staging": "al-asas-dental-staging",
+    "prod": "al-asas-dental-prod"
   },
   "targets": {
     "al-asas-dental-staging": {
       "hosting": {
-        "unified": ["al-asas-dental-staging"],
-        "legacy-admin": ["al-asas-dental-admin"]
+        "unified": [
+          "al-asas-dental-staging"
+        ],
+        "legacy-admin": [
+          "al-asas-dental-admin"
+        ]
+      }
+    },
+    "al-asas-dental-prod": {
+      "hosting": {
+        "unified": [
+          "al-asas-dental-prod"
+        ]
       }
     }
   }

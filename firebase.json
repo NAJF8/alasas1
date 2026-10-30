@@ -1,6 +1,13 @@
 {
   "auth": {
-    "authorizedDomains": ["localhost", "al-asas-dental-staging.web.app", "al-asas-dental-admin.web.app"],
+    "authorizedDomains": [
+      "localhost",
+      "al-asas-dental-staging.web.app",
+      "al-asas-dental-admin.web.app",
+      "al-asas-dental-prod.web.app",
+      "al-asas-dental-prod.firebaseapp.com",
+      "dental.alasas.tech"
+    ],
     "providers": {
       "emailPassword": true,
       "googleSignIn": {

@@ -1233,7 +1233,7 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
     try {
       const url = new URL(request.url);
-      if (url.pathname === '/health') return json({ ok: true, environment: 'staging', productionWrites: false, version: 'registration-approval-matching-v1', releaseSha: env.RELEASE_SHA || 'unknown' }, 200, headers);
+      if (url.pathname === '/health') return json({ ok: true, environment: env.FIREBASE_PROJECT_ID?.includes('prod') ? 'production' : 'staging', productionWrites: Boolean(env.FIREBASE_PROJECT_ID?.includes('prod')), version: 'registration-approval-matching-v1', releaseSha: env.RELEASE_SHA || 'unknown' }, 200, headers);
       if (!url.pathname.startsWith('/api/')) return json({ error: 'NOT_FOUND' }, 404, headers);
       const publicRoute = url.pathname === '/api/registration-request' || url.pathname === '/api/auth/login';
       const optionalAuthRoute = url.pathname === '/api/storage/download';

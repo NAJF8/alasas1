@@ -1,0 +1,60 @@
+name: CI Test Suite
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [codex/*, main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Build & Verify Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            customer-app/package-lock.json
+            admin-app/package-lock.json
+
+      - name: Run Worker Unit Tests
+        working-directory: worker
+        run: |
+          node --version
+          npm test
+
+      - name: Install Customer App Dependencies
+        working-directory: customer-app
+        run: npm ci
+
+      - name: Build Customer App
+        working-directory: customer-app
+        run: npm run build
+
+      - name: Install Admin App Dependencies
+        working-directory: admin-app
+        run: npm ci
+
+      - name: Build Admin App
+        working-directory: admin-app
+        run: npm run build
+
+      - name: Assemble Unified Distribution
+        run: node tools/build-unified.mjs
+
+      - name: Verify Build Artifacts Integrity
+        run: |
+          test -f dist-deploy/index.html || { echo "Missing customer index.html"; exit 1; }
+          test -f dist-deploy/admin/index.html || { echo "Missing admin index.html"; exit 1; }
+          echo "Build artifacts verified cleanly."
