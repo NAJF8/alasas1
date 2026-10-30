@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test:management-display": "node --experimental-strip-types scripts/displayValue.test.ts",
+    "test:theme": "node --experimental-strip-types scripts/theme-behavior.test.ts",
     "test:e2e:public-media": "node ../tools/e2e/public-media.playwright.mjs",
     "preview": "vite preview"
   },

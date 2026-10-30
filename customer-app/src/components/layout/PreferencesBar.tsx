@@ -1,49 +1,27 @@
 import { Monitor, Moon, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  type ThemeMode,
+  type LangMode,
+  THEME_KEY,
+  LANG_KEY,
+  resolveEffectiveTheme,
+  applyThemeToDom,
+  applyLangToDom,
+  readStoredTheme,
+  readStoredLang,
+} from '../../lib/theme';
 
-export type ThemeMode = 'system' | 'light' | 'dark';
-export type LangMode = 'ar' | 'en';
-
-const THEME_KEY = 'al-asas-theme';
-const LANG_KEY = 'al-asas-lang';
-
-export const resolveEffectiveTheme = (mode: ThemeMode): 'light' | 'dark' => {
-  if (mode === 'light' || mode === 'dark') return mode;
-  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-  return 'light';
-};
-
-export const applyThemeToDom = (mode: ThemeMode) => {
-  if (typeof document === 'undefined') return;
-  const effective = resolveEffectiveTheme(mode);
-  document.documentElement.setAttribute('data-theme', effective);
-  document.documentElement.setAttribute('data-theme-mode', mode);
-  document.documentElement.classList.toggle('dark', effective === 'dark');
-};
-
-export const applyLangToDom = (lang: LangMode) => {
-  if (typeof document === 'undefined') return;
-  document.documentElement.lang = lang;
-  document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
-};
-
-export const readStoredTheme = (): ThemeMode => {
-  try {
-    const raw = localStorage.getItem(THEME_KEY);
-    if (raw === 'light' || raw === 'dark' || raw === 'system') return raw;
-  } catch { /* ignore */ }
-  return 'system';
-};
-
-export const readStoredLang = (): LangMode => {
-  try {
-    const raw = localStorage.getItem(LANG_KEY);
-    if (raw === 'ar' || raw === 'en') return raw;
-  } catch { /* ignore */ }
-  return 'ar';
+export type { ThemeMode, LangMode };
+export {
+  THEME_KEY,
+  LANG_KEY,
+  resolveEffectiveTheme,
+  applyThemeToDom,
+  applyLangToDom,
+  readStoredTheme,
+  readStoredLang,
 };
 
 if (typeof window !== 'undefined') {
