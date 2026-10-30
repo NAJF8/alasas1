@@ -26,3 +26,4 @@ _backups/
 *.key
 credentials.json
 production-import-manifest.json
+_evidence_screenshots/
