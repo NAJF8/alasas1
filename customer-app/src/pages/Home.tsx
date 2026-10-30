@@ -1,30 +1,287 @@
-import { ArrowLeft, CalendarDays, ChevronLeft, CircleHelp, GraduationCap, HeartHandshake, ImageOff, LockKeyhole, MapPin, ShieldCheck, Sparkles, University, UserRound, UsersRound } from 'lucide-react';
+import {
+  ArrowLeft,
+  CalendarDays,
+  ChevronLeft,
+  CircleHelp,
+  GraduationCap,
+  HeartHandshake,
+  LockKeyhole,
+  MapPin,
+  ShieldCheck,
+  Sparkles,
+  University,
+  UserRound,
+  UsersRound,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { Header } from '../components/layout/Header';
 import { Hero } from '../components/home/Hero';
 import { isProfileComplete, useAuth } from '../context/AuthContext';
 import { getActiveClinicalCategories, getActiveUniversities, type ClinicalCategoryOption } from '../lib/referenceData';
+import { ImageWithFallback } from '../components/common/ImageWithFallback';
+import { getCategoryImage, getCategoryPlaceholder, getUniversityImage, getUniversityPlaceholder } from '../lib/cardPlaceholders';
 
-const steps = [{ number: '01', icon: UsersRound, title: 'أنشئ حسابك', body: 'اختر حساب مريض أو طالب طب أسنان وأكمل بياناتك الأساسية.' }, { number: '02', icon: HeartHandshake, title: 'أرسل طلبك', body: 'ارفع الحالة أو حدّد المواصفات السريرية التي تبحث عنها.' }, { number: '03', icon: Sparkles, title: 'مطابقة مناسبة', body: 'تساعد الإدارة في ترشيح أفضل تطابق حسب الجامعة والموقع والتوفر.' }, { number: '04', icon: CalendarDays, title: 'موعد منسّق', body: 'تواصل آمن عبر المنصة وتنسيق الموعد دون كشف بياناتك الشخصية.' }];
+const steps = [
+  { number: '01', icon: UsersRound, title: 'أنشئ حسابك', body: 'اختر حساب مريض أو طالب طب أسنان وأكمل بياناتك الأساسية.' },
+  { number: '02', icon: HeartHandshake, title: 'أرسل طلبك', body: 'ارفع الحالة أو حدّد المواصفات السريرية التي تبحث عنها.' },
+  { number: '03', icon: Sparkles, title: 'مطابقة مناسبة', body: 'تساعد الإدارة في ترشيح أفضل تطابق حسب الجامعة والموقع والتوفر.' },
+  { number: '04', icon: CalendarDays, title: 'موعد منسّق', body: 'تواصل آمن عبر المنصة وتنسيق الموعد دون كشف بياناتك الشخصية.' },
+];
+
 const currentYear = new Date().getFullYear();
-type UniversityCard = { id: string; name_ar: string; image_url?: string | null };
+
+type UniversityCard = {
+  id: string;
+  name_ar: string;
+  name_en?: string | null;
+  image_url?: string | null;
+};
+
+const defaultUniversities: UniversityCard[] = [
+  { id: 'u-kufa', name_ar: 'جامعة الكوفة', name_en: 'University of Kufa', image_url: '/images/universities/kufa.svg' },
+  { id: 'u-kafeel', name_ar: 'جامعة الكفيل', name_en: 'Al-Kafeel University', image_url: '/images/universities/kafeel.svg' },
+];
+
+const defaultCategories: ClinicalCategoryOption[] = [
+  { id: 'c-class1', name_ar: 'Class I', image_url: '/images/categories/class-1.svg' },
+  { id: 'c-class2', name_ar: 'Class II', image_url: '/images/categories/class-2.svg' },
+  { id: 'c-class3', name_ar: 'Class III', image_url: '/images/categories/class-3.svg' },
+  { id: 'c-class4', name_ar: 'Class IV', image_url: '/images/categories/class-4.svg' },
+  { id: 'c-endo', name_ar: 'علاج الجذور', image_url: '/images/categories/endo.svg' },
+  { id: 'c-filling', name_ar: 'حشوات الأسنان', image_url: '/images/categories/filling.svg' },
+  { id: 'c-scaling', name_ar: 'تنظيف الأسنان', image_url: '/images/categories/scaling.svg' },
+  { id: 'c-pediatric', name_ar: 'أسنان الأطفال', image_url: '/images/categories/pediatric.svg' },
+];
 
 export const Home = () => {
   const { user, profile, loading } = useAuth();
-  const [universities, setUniversities] = useState<UniversityCard[]>([]);
-  const [categories, setCategories] = useState<ClinicalCategoryOption[]>([]);
-  useEffect(() => { let active = true; void Promise.all([getActiveUniversities(), getActiveClinicalCategories()]).then(([universityRows, categoryRows]) => { if (!active) return; setUniversities(universityRows.slice(0, 8)); setCategories(categoryRows); }); return () => { active = false; }; }, []);
+  const [universities, setUniversities] = useState<UniversityCard[]>(defaultUniversities);
+  const [categories, setCategories] = useState<ClinicalCategoryOption[]>(defaultCategories);
+
+  useEffect(() => {
+    let active = true;
+    void Promise.all([getActiveUniversities(), getActiveClinicalCategories()]).then(([universityRows, categoryRows]) => {
+      if (!active) return;
+      if (universityRows && universityRows.length > 0) {
+        setUniversities(universityRows.slice(0, 8));
+      }
+      if (categoryRows && categoryRows.length > 0) {
+        setCategories(categoryRows);
+      }
+    });
+    return () => { active = false; };
+  }, []);
+
   const accountName = profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'مستخدم';
-  const accountAction = !user ? <><Link className="primary-button hero-primary" to="/register?role=PATIENT&start=1">ابدأ كمريض <UserRound size={18} /></Link><Link className="secondary-button" to="/register?role=STUDENT&start=1">ابدأ كطالب <GraduationCap size={18} /></Link><Link className="text-link" to="/login">تسجيل الدخول</Link></> : loading ? <span className="hero-note">جاري التحقق من الحساب...</span> : <><span className="hero-note">أهلاً، {accountName}</span><Link className="primary-button hero-primary" to={isProfileComplete(profile) ? '/dashboard' : '/profile'}>{isProfileComplete(profile) ? 'الذهاب إلى حسابي' : 'تعديل الملف الشخصي'} <ArrowLeft size={18} /></Link></>;
-  return <div className="customer-shell" dir="rtl"><Header /><main>
-    <Hero accountAction={accountAction} />
-    <section className="trust-strip"><div><ShieldCheck size={22} /><span><b>خصوصيتك أولاً</b><small>بيانات التواصل للإدارة فقط</small></span></div><div><University size={22} /><span><b>جامعات قريبة</b><small>اختيار يصل إلى 4 جامعات</small></span></div><div><Sparkles size={22} /><span><b>مطابقة أذكى</b><small>عوامل سريرية ومكانية واضحة</small></span></div></section>
-    <section className="section how-section" id="how-it-works"><div className="section-heading"><span>بخطوات واضحة</span><h2>كيف تعمل المنصة؟</h2><p>من تسجيل الحساب إلى الموعد، كل مرحلة مصممة لتكون بسيطة وآمنة.</p></div><div className="steps-grid">{steps.map(({ number, icon: Icon, title, body }) => <article className="step-card" key={number}><div className="step-icon"><Icon size={23} /></div><span className="step-number">{number}</span><h3>{title}</h3><p>{body}</p></article>)}</div></section>
-    <section className="section audience-section" id="patients"><div className="section-heading"><span>اختر طريقك</span><h2>منصة واحدة، احتياجان واضحان</h2><p>لا توجد حسابات وسيطة للعميل. اختر الدور الذي يناسبك وابدأ.</p></div><div className="audience-grid"><article className="audience-card audience-patient"><div className="audience-mark">م</div><div><h3>أنا مريض</h3><p>أرغب في عرض حالة أسنان والعثور على طالب مناسب في جامعة قريبة.</p><Link to="/register?role=PATIENT">ابدأ كمريض <ArrowLeft size={17} /></Link></div></article><article className="audience-card audience-student"><div className="audience-mark">ط</div><div><h3>أنا طالب طب أسنان</h3><p>أبحث عن حالات سريرية مناسبة لمتطلبات التدريب في جامعتي.</p><Link to="/register?role=STUDENT">ابدأ كطالب <ArrowLeft size={17} /></Link></div></article></div></section>
-    <section className="section privacy-section"><div className="privacy-panel"><div className="privacy-icon"><LockKeyhole size={26} /></div><div><span>أمان وخصوصية</span><h2>بياناتك لا تُعرض للطرف الآخر</h2><p>نخفي الاسم ورقم الهاتف وواتساب والبريد عن العملاء. الإدارة وحدها تنسّق التواصل عند وجود تطابق مناسب.</p></div><Link className="outline-button" to="/faq">اعرف المزيد <ChevronLeft size={17} /></Link></div></section>
-    <section className="section universities-section" id="universities"><div className="section-heading section-heading-row"><div><span>شركاؤنا القريبون</span><h2>جامعات طب الأسنان</h2><p>اختر الجامعات الأنسب لك أثناء إنشاء ملفك أو حالتك.</p></div><Link className="text-link" to="/login">عرض الجامعات <ArrowLeft size={17} /></Link></div>{universities.length ? <div className="university-row">{universities.map((item, index) => <div className="university-tile" key={item.id}><div className={`university-photo university-photo-${index + 1}`}>{item.image_url ? <img src={item.image_url} alt={`شعار ${item.name_ar}`} /> : <ImageOff size={28} aria-label="لا توجد صورة" />}</div><b>{item.name_ar}</b><small>كلية طب الأسنان</small><MapPin size={14} /> النجف / العراق</div>)}</div> : <div className="customer-empty-state"><University size={24} /><span>لا توجد جامعات منشورة حالياً.</span></div>}</section>
-    <section className="section categories-section" id="categories"><div className="section-heading"><span>مجالات التدريب</span><h2>التصنيفات السريرية</h2><p>تعرف على المجالات المتاحة قبل بدء التسجيل.</p></div>{categories.length ? <div className="category-row">{categories.map((item) => <div className="category-tile" key={item.id}><div className="category-photo">{item.image_url ? <img src={item.image_url} alt={item.name_ar} /> : <ImageOff size={26} aria-label="لا توجد صورة" />}</div><b>{item.name_ar}</b></div>)}</div> : <div className="customer-empty-state"><Sparkles size={24} /><span>لا توجد تصنيفات سريرية منشورة حالياً.</span></div>}</section>
-    <section className="section faq-section" id="faq"><div className="section-heading"><span>أسئلة شائعة</span><h2>قبل أن تبدأ</h2></div><div className="faq-grid"><details open><summary><CircleHelp size={18} /> هل يمكنني اختيار أكثر من جامعة؟ <ChevronLeft size={18} /></summary><p>نعم، يمكنك اختيار جامعة واحدة إلى أربع جامعات مناسبة لك، ويمكن تعديلها عند إضافة الحالة.</p></details><details><summary><CircleHelp size={18} /> هل تظهر بياناتي للطلاب؟ <ChevronLeft size={18} /></summary><p>لا. تظهر حالة مجهّلة فقط، وتبقى بيانات التواصل لدى إدارة المنصة.</p></details><details><summary><CircleHelp size={17} /> هل التسجيل مجاني؟ <ChevronLeft size={17} /></summary><p>إنشاء الحساب وإرسال الحالة متاحان من خلال المنصة، وأي تنسيق يتم عبر الإدارة.</p></details></div></section>
-  </main><footer className="customer-footer"><div><div className="brand-lockup"><div className="brand-tooth">✦</div><span>أسنان الأساس<small>منصة تربط المرضى بطلاب طب الأسنان</small></span></div><p>رعاية أسنان أفضل بالتعاون مع جامعات العراق.</p></div><div className="footer-links"><Link to="/how-it-works">كيف تعمل المنصة</Link><Link to="/patients">للمرضى</Link><Link to="/students">للطلاب</Link><Link to="/faq">الأسئلة الشائعة</Link></div><small>© {currentYear} جميع الحقوق محفوظة لشركة الأساس للحلول البرمجية</small><small dir="ltr">Version 1.5.0</small></footer></div>;
+  const accountAction = !user ? (
+    <>
+      <Link className="primary-button hero-primary" to="/register?role=PATIENT&start=1">
+        ابدأ كمريض <UserRound size={18} />
+      </Link>
+      <Link className="secondary-button" to="/register?role=STUDENT&start=1">
+        ابدأ كطالب <GraduationCap size={18} />
+      </Link>
+      <Link className="text-link" to="/login">تسجيل الدخول</Link>
+    </>
+  ) : loading ? (
+    <span className="hero-note">جاري التحقق من الحساب...</span>
+  ) : (
+    <>
+      <span className="hero-note">أهلاً، {accountName}</span>
+      <Link className="primary-button hero-primary" to={isProfileComplete(profile) ? '/dashboard' : '/profile'}>
+        {isProfileComplete(profile) ? 'الذهاب إلى حسابي' : 'تعديل الملف الشخصي'} <ArrowLeft size={18} />
+      </Link>
+    </>
+  );
+
+  return (
+    <div className="customer-shell" dir="rtl">
+      <Header />
+      <main>
+        <Hero accountAction={accountAction} />
+
+        <section className="trust-strip">
+          <div>
+            <ShieldCheck size={22} />
+            <span>
+              <b>خصوصيتك أولاً</b>
+              <small>بيانات التواصل للإدارة فقط</small>
+            </span>
+          </div>
+          <div>
+            <University size={22} />
+            <span>
+              <b>جامعات قريبة</b>
+              <small>اختيار يصل إلى 4 جامعات</small>
+            </span>
+          </div>
+          <div>
+            <Sparkles size={22} />
+            <span>
+              <b>مطابقة أذكى</b>
+              <small>عوامل سريرية ومكانية واضحة</small>
+            </span>
+          </div>
+        </section>
+
+        <section className="section how-section" id="how-it-works">
+          <div className="section-heading">
+            <span>بخطوات واضحة</span>
+            <h2>كيف تعمل المنصة؟</h2>
+            <p>من تسجيل الحساب إلى الموعد، كل مرحلة مصممة لتكون بسيطة وآمنة.</p>
+          </div>
+          <div className="steps-grid">
+            {steps.map(({ number, icon: Icon, title, body }) => (
+              <article className="step-card" key={number}>
+                <div className="step-icon"><Icon size={23} /></div>
+                <span className="step-number">{number}</span>
+                <h3>{title}</h3>
+                <p>{body}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="section audience-section" id="patients">
+          <div className="section-heading">
+            <span>اختر طريقك</span>
+            <h2>منصة واحدة، احتياجان واضحان</h2>
+            <p>لا توجد حسابات وسيطة للعميل. اختر الدور الذي يناسبك وابدأ.</p>
+          </div>
+          <div className="audience-grid">
+            <article className="audience-card audience-patient">
+              <div className="audience-mark">م</div>
+              <div>
+                <h3>أنا مريض</h3>
+                <p>أرغب في عرض حالة أسنان والعثور على طالب مناسب في جامعة قريبة.</p>
+                <Link to="/register?role=PATIENT">ابدأ كمريض <ArrowLeft size={17} /></Link>
+              </div>
+            </article>
+            <article className="audience-card audience-student">
+              <div className="audience-mark">ط</div>
+              <div>
+                <h3>أنا طالب طب أسنان</h3>
+                <p>أبحث عن حالات سريرية مناسبة لمتطلبات التدريب في جامعتي.</p>
+                <Link to="/register?role=STUDENT">ابدأ كطالب <ArrowLeft size={17} /></Link>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section className="section privacy-section">
+          <div className="privacy-panel">
+            <div className="privacy-icon"><LockKeyhole size={26} /></div>
+            <div>
+              <span>أمان وخصوصية</span>
+              <h2>بياناتك لا تُعرض للطرف الآخر</h2>
+              <p>نخفي الاسم ورقم الهاتف وواتساب والبريد عن العملاء. الإدارة وحدها تنسّق التواصل عند وجود تطابق مناسب.</p>
+            </div>
+            <Link className="outline-button" to="/faq">اعرف المزيد <ChevronLeft size={17} /></Link>
+          </div>
+        </section>
+
+        <section className="section universities-section" id="universities">
+          <div className="section-heading section-heading-row">
+            <div>
+              <span>شركاؤنا القريبون</span>
+              <h2>جامعات طب الأسنان</h2>
+              <p>اختر الجامعات الأنسب لك أثناء إنشاء ملفك أو حالتك.</p>
+            </div>
+            <Link className="text-link" to="/login">عرض الجامعات <ArrowLeft size={17} /></Link>
+          </div>
+
+          <div className="university-row">
+            {universities.map((item) => (
+              <div className="university-tile" key={item.id}>
+                <div className="university-photo">
+                  <ImageWithFallback
+                    src={getUniversityImage(item)}
+                    fallbackSrc={getUniversityPlaceholder(item)}
+                    alt={`شعار ${item.name_ar}`}
+                    className="card-media"
+                  />
+                </div>
+                <b>{item.name_ar}</b>
+                <small>كلية طب الأسنان</small>
+                <div className="tile-location">
+                  <MapPin size={14} /> النجف / العراق
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="section categories-section" id="categories">
+          <div className="section-heading">
+            <span>مجالات التدريب</span>
+            <h2>التصنيفات السريرية</h2>
+            <p>تعرف على المجالات المتاحة قبل بدء التسجيل.</p>
+          </div>
+
+          <div className="category-row">
+            {categories.map((item) => (
+              <div className="category-tile" key={item.id}>
+                <div className="category-photo">
+                  <ImageWithFallback
+                    src={getCategoryImage(item)}
+                    fallbackSrc={getCategoryPlaceholder(item)}
+                    alt={item.name_ar}
+                    className="card-media"
+                  />
+                </div>
+                <b>{item.name_ar}</b>
+                <small>تدريب سريري معتمد</small>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="section faq-section" id="faq">
+          <div className="section-heading">
+            <span>أسئلة شائعة</span>
+            <h2>قبل أن تبدأ</h2>
+          </div>
+          <div className="faq-grid">
+            <details open>
+              <summary>
+                <CircleHelp size={18} /> هل يمكنني اختيار أكثر من جامعة؟ <ChevronLeft size={18} />
+              </summary>
+              <p>نعم، يمكنك اختيار جامعة واحدة إلى أربع جامعات مناسبة لك، ويمكن تعديلها عند إضافة الحالة.</p>
+            </details>
+            <details>
+              <summary>
+                <CircleHelp size={18} /> هل تظهر بياناتي للطلاب؟ <ChevronLeft size={18} />
+              </summary>
+              <p>لا. تظهر حالة مجهّلة فقط، وتبقى بيانات التواصل لدى إدارة المنصة.</p>
+            </details>
+            <details>
+              <summary>
+                <CircleHelp size={17} /> هل التسجيل مجاني؟ <ChevronLeft size={17} />
+              </summary>
+              <p>إنشاء الحساب وإرسال الحالة متاحان من خلال المنصة، وأي تنسيق يتم عبر الإدارة.</p>
+            </details>
+          </div>
+        </section>
+      </main>
+
+      <footer className="customer-footer">
+        <div>
+          <div className="brand-lockup">
+            <div className="brand-tooth">✦</div>
+            <span>أسنان الأساس<small>منصة تربط المرضى بطلاب طب الأسنان</small></span>
+          </div>
+          <p>رعاية أسنان أفضل بالتعاون مع جامعات العراق.</p>
+        </div>
+        <div className="footer-links">
+          <Link to="/how-it-works">كيف تعمل المنصة</Link>
+          <Link to="/patients">للمرضى</Link>
+          <Link to="/students">للطلاب</Link>
+          <Link to="/faq">الأسئلة الشائعة</Link>
+        </div>
+        <small>© {currentYear} جميع الحقوق محفوظة لشركة الأساس للحلول البرمجية</small>
+        <small dir="ltr">Version 1.5.0</small>
+      </footer>
+    </div>
+  );
 };

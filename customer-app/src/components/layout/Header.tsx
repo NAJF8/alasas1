@@ -24,43 +24,79 @@ export const Header = () => {
         ? '/patient/dashboard'
         : '/';
 
-  return <><header className="customer-header">
-    <div className="header-inner">
-      <Link to="/" className="brand-lockup" onClick={close}>
-        <img className="brand-image official-brand-logo" src={branding.customer_header_logo_url || branding.logo_url || '/brand/official-logo-light.png'} alt="شعار الأساس" />
-        <span>{branding.platform_arabic_name}<small>{branding.platform_english_name}</small></span>
-      </Link>
-      <nav className={open ? 'header-nav is-open' : 'header-nav'}>
-        <Link to="/how-it-works" onClick={close}>كيف تعمل المنصة</Link>
-        <Link to="/patients" onClick={close}>للمرضى</Link>
-        <Link to="/students" onClick={close}>للطلاب</Link>
-        {profile?.role === 'STUDENT' && <Link to="/student/verification" onClick={close}>توثيق الطالب</Link>}
-        <Link to="/faq" onClick={close}>الأسئلة الشائعة</Link>
-        {user && !loading ? <>
-          {isCustomer && <Link className="mobile-account-link" to="/profile" onClick={close}>الملف الشخصي</Link>}
-          <button className="mobile-logout" onClick={logout}>تسجيل الخروج</button>
-        </> : <>
-          <Link className="mobile-auth-link" to="/login" onClick={close}>تسجيل الدخول</Link>
-          <Link className="mobile-auth-link mobile-auth-cta" to="/register" onClick={close}>إنشاء حساب</Link>
-        </>}
-      </nav>
-      <div className="header-actions">
-        <PreferencesControls compact />
-        <Link className="icon-button" to={notificationDestination} aria-label="الإشعارات"><Bell size={19} /></Link>
-        {loading || !user ? <>
-          <Link className="header-login" to="/login">تسجيل الدخول</Link>
-          <Link className="primary-button header-cta" to="/register">إنشاء حساب</Link>
-        </> : <>
-          <span className="header-greeting">أهلاً، {name}</span>
-          {isCustomer && (
-            <Link className="header-login inline-flex items-center gap-1" to="/profile" aria-label="الملف الشخصي">
-              <UserCog size={15} /> الملف الشخصي
-            </Link>
-          )}
-          <button className="header-logout" onClick={logout}>تسجيل الخروج</button>
-        </>}
-        <button className="menu-button" onClick={() => setOpen((current) => !current)} aria-label="القائمة">{open ? <X size={21} /> : <Menu size={21} />}</button>
-      </div>
-    </div>
-  </header>{supportUrl && <a className="customer-support-fab" href={supportUrl} target="_blank" rel="noopener noreferrer" aria-label={branding.whatsapp_label_ar || 'تواصل معنا'}><MessageCircle size={20} /><span>{branding.whatsapp_label_ar || 'تواصل معنا'}</span></a>}</>;
+  return (
+    <>
+      <header className="customer-header">
+        <div className="header-inner">
+          <Link to="/" className="brand-lockup" onClick={close}>
+            <img
+              className="brand-image official-brand-logo"
+              src={branding.customer_header_logo_url || branding.logo_url || '/brand/official-logo-light.png'}
+              alt="شعار الأساس"
+            />
+            <span>
+              {branding.platform_arabic_name}
+              <small>{branding.platform_english_name}</small>
+            </span>
+          </Link>
+          <nav className={open ? 'header-nav is-open' : 'header-nav'}>
+            <Link to="/how-it-works" onClick={close}>كيف تعمل المنصة</Link>
+            <Link to="/patients" onClick={close}>للمرضى</Link>
+            <Link to="/students" onClick={close}>للطلاب</Link>
+            {profile?.role === 'STUDENT' && <Link to="/student/verification" onClick={close}>توثيق الطالب</Link>}
+            <Link to="/faq" onClick={close}>الأسئلة الشائعة</Link>
+            {user && !loading ? (
+              <>
+                {isCustomer && <Link className="mobile-account-link" to="/profile" onClick={close}>الملف الشخصي</Link>}
+                <button className="mobile-logout" onClick={logout}>تسجيل الخروج</button>
+              </>
+            ) : (
+              <>
+                <Link className="mobile-auth-link" to="/login" onClick={close}>تسجيل الدخول</Link>
+                <Link className="mobile-auth-link mobile-auth-cta" to="/register" onClick={close}>إنشاء حساب</Link>
+              </>
+            )}
+          </nav>
+          <div className="header-actions">
+            {loading || !user ? (
+              <>
+                <PreferencesControls compact />
+                <Link className="icon-button" to={notificationDestination} aria-label="الإشعارات">
+                  <Bell size={19} />
+                </Link>
+                <Link className="header-login" to="/login">تسجيل الدخول</Link>
+                <Link className="primary-button header-cta" to="/register">إنشاء حساب</Link>
+              </>
+            ) : (
+              <>
+                <div className="header-user-badge" title={`الحساب: ${name}`}>
+                  <span className="header-greeting-dot" aria-hidden="true" />
+                  <span className="header-greeting">أهلاً، {name}</span>
+                </div>
+                {isCustomer && (
+                  <Link className="header-login inline-flex items-center gap-1" to="/profile" aria-label="الملف الشخصي">
+                    <UserCog size={15} /> الملف الشخصي
+                  </Link>
+                )}
+                <Link className="icon-button" to={notificationDestination} aria-label="الإشعارات">
+                  <Bell size={19} />
+                </Link>
+                <PreferencesControls compact />
+                <button className="header-logout" onClick={logout}>تسجيل الخروج</button>
+              </>
+            )}
+            <button className="menu-button" onClick={() => setOpen((current) => !current)} aria-label="القائمة">
+              {open ? <X size={21} /> : <Menu size={21} />}
+            </button>
+          </div>
+        </div>
+      </header>
+      {supportUrl && (
+        <a className="customer-support-fab" href={supportUrl} target="_blank" rel="noopener noreferrer" aria-label={branding.whatsapp_label_ar || 'تواصل معنا'}>
+          <MessageCircle size={20} />
+          <span>{branding.whatsapp_label_ar || 'تواصل معنا'}</span>
+        </a>
+      )}
+    </>
+  );
 };

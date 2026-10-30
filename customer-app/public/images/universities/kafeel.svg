@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="320" height="200">
+  <defs>
+    <linearGradient id="kafeel-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0c3836"/>
+      <stop offset="100%" stop-color="#146d65"/>
+    </linearGradient>
+    <linearGradient id="kafeel-gold" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#d4af37"/>
+      <stop offset="100%" stop-color="#f8e48b"/>
+    </linearGradient>
+    <filter id="kafeel-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <rect width="320" height="200" rx="16" fill="url(#kafeel-bg)"/>
+  <circle cx="270" cy="50" r="85" fill="#1cb09f" opacity="0.2"/>
+  <circle cx="50" cy="160" r="75" fill="#d4af37" opacity="0.12"/>
+
+  <!-- University Dome &amp; Minarets Motif -->
+  <g opacity="0.2" fill="#ffffff">
+    <rect x="30" y="125" width="260" height="3" rx="1.5"/>
+    <path d="M160 52 C142 52 130 68 130 85 H190 C190 68 178 52 160 52 Z"/>
+    <rect x="140" y="85" width="40" height="40"/>
+    <rect x="75" y="65" width="12" height="60" rx="2"/>
+    <path d="M75 65 L81 55 L87 65 Z"/>
+    <rect x="233" y="65" width="12" height="60" rx="2"/>
+    <path d="M233 65 L239 55 L245 65 Z"/>
+  </g>
+
+  <!-- Central Emblem Card -->
+  <g filter="url(#kafeel-shadow)">
+    <rect x="115" y="38" width="90" height="90" rx="18" fill="#ffffff"/>
+    <rect x="119" y="42" width="82" height="82" rx="14" fill="#f4faf8"/>
+    
+    <!-- Stylized Tooth + Caduceus/Gold Leaf -->
+    <path d="M160 56 C148 56 140 64 140 76 C140 88 144 104 150 114 C152 118 156 118 158 112 C159 108 160 102 160 102 C160 102 161 108 162 112 C164 118 168 118 170 114 C176 104 180 88 180 76 C180 64 172 56 160 56 Z" fill="#12a795"/>
+    <circle cx="160" cy="74" r="9" fill="url(#kafeel-gold)"/>
+    <path d="M157 74 L163 74 M160 71 L160 77" stroke="#0c3836" stroke-width="2" stroke-linecap="round"/>
+  </g>
+
+  <!-- Banner -->
+  <rect x="40" y="142" width="240" height="38" rx="10" fill="#ffffff" fill-opacity="0.95" filter="url(#kafeel-shadow)"/>
+  <text x="160" y="160" fill="#0c3836" font-family="'IBM Plex Sans Arabic', Arial, sans-serif" font-weight="700" font-size="13" text-anchor="middle">جامعة الكفيل</text>
+  <text x="160" y="173" fill="#158563" font-family="'IBM Plex Sans Arabic', Arial, sans-serif" font-weight="600" font-size="10" text-anchor="middle">كلية طب الأسنان • النجف الأشرف</text>
+</svg>

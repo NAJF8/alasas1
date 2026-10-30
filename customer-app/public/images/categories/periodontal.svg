@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="320" height="200">
+  <defs>
+    <linearGradient id="bg-e86580" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f2fafc"/>
+      <stop offset="100%" stop-color="#e5f3f8"/>
+    </linearGradient>
+    <filter id="sh" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#0c3158" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+  <rect width="320" height="200" rx="16" fill="url(#bg-e86580)"/>
+  <circle cx="260" cy="45" r="70" fill="#e86580" opacity="0.08"/>
+  <circle cx="55" cy="155" r="60" fill="#12a795" opacity="0.08"/>
+  
+  <!-- Outer Card -->
+  <g filter="url(#sh)">
+    <rect x="110" y="24" width="100" height="98" rx="20" fill="#ffffff"/>
+    <rect x="114" y="28" width="92" height="90" rx="16" fill="#f8fcfe"/>
+    <g transform="translate(110, 24)">
+      <path d="M50 16 C38 16 30 24 30 36 C30 48 34 64 40 74 C42 78 46 78 48 72 C49 68 50 62 50 62 C50 62 51 68 52 72 C54 78 58 78 60 74 C66 64 70 48 70 36 C70 24 62 16 50 16 Z" fill="#ffffff" stroke="#0c3158" stroke-width="2.5"/>
+          <path d="M25 45 C35 52 65 52 75 45 C75 60 68 76 50 78 C32 76 25 60 25 45 Z" fill="#f7a4b6" opacity="0.65" stroke="#e86580" stroke-width="2"/>
+          <line x1="50" y1="32" x2="50" y2="58" stroke="#12a795" stroke-width="2" stroke-linecap="round"/>
+    </g>
+  </g>
+
+  <!-- Title Pill -->
+  <g filter="url(#sh)">
+    <rect x="40" y="134" width="240" height="48" rx="12" fill="#ffffff"/>
+    <text x="160" y="156" fill="#0c3158" font-family="'IBM Plex Sans Arabic', Arial, sans-serif" font-weight="700" font-size="13" text-anchor="middle">علاج وجراحة اللثة</text>
+    <text x="160" y="171" fill="#e86580" font-family="'IBM Plex Sans Arabic', Arial, sans-serif" font-weight="600" font-size="9.5" text-anchor="middle">Periodontology &amp; Gum Care</text>
+  </g>
+</svg>

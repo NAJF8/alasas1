@@ -2,6 +2,7 @@ import { Bell, CalendarDays, CheckCircle2, Edit3, Eye, ExternalLink, FileHeart, 
 import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { Header } from '../../components/layout/Header';
+import { ImageWithFallback } from '../../components/common/ImageWithFallback';
 import { CustomerFooter } from '../../components/layout/PreferencesBar';
 import { useAuth } from '../../context/AuthContext';
 import { callBackend, firebaseData as supabase } from '../../lib/firebaseData';
@@ -370,7 +371,7 @@ export const PatientDashboard = () => {
                 {imagesModal.images.map((img) => (
                   <div key={img.id} className="rounded-xl border border-slate-200 p-3">
                     {img.mime_type?.startsWith('image/') ? (
-                      <img src={img.signed_url} alt={img.file_name} className="h-36 w-full rounded-lg object-cover" />
+                      <ImageWithFallback src={img.signed_url} fallbackSrc="/images/categories/default-category.svg" alt={img.file_name} className="h-36 w-full rounded-lg object-cover" />
                     ) : (
                       <a href={img.signed_url} target="_blank" rel="noreferrer" className="block rounded-lg bg-slate-100 p-4 text-center text-sm font-bold text-teal-700">
                         فتح ملف PDF ({img.file_name})
