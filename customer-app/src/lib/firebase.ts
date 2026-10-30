@@ -3,12 +3,12 @@ import { getAuth, GoogleAuthProvider, browserLocalPersistence, setPersistence } 
 import { getFirestore } from 'firebase/firestore';
 
 const config = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDO4QHtOT0HQ-t7CgbdwDfgTuYPni23Vxc',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'al-asas-dental-staging.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'al-asas-dental-staging',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'al-asas-dental-staging.firebasestorage.app',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '915871985225',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:915871985225:web:882308a631a4ef87df9998',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDRTjsQ40m3atrNEc7MCp_j0FZOAKe4FRc',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'al-asas-dental-prod.firebaseapp.com',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'al-asas-dental-prod',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'al-asas-dental-prod.firebasestorage.app',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '601386969849',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:601386969849:web:4c05dcc7dc3f81e5bc9028',
 };
 
 export const firebaseApp = getApps().length ? getApp() : initializeApp(config);
@@ -19,4 +19,4 @@ export const authPersistenceReady = setPersistence(auth, browserLocalPersistence
 export const configurationError = null;
 export const getOAuthRedirectUrl = () => new URL(import.meta.env.BASE_URL || '/', window.location.origin).toString();
 
-export const apiBaseUrl = (import.meta.env.VITE_FIREBASE_BACKEND_URL || 'https://alasas-dental-staging-worker.coffee101.workers.dev').replace(/\/$/, '');
+export const apiBaseUrl = (import.meta.env.VITE_FIREBASE_BACKEND_URL || 'https://alasas-dental-prod-worker.coffee101.workers.dev').replace(/\/$/, '');

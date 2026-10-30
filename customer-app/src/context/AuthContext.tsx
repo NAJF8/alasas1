@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { GoogleAuthProvider, RecaptchaVerifier, isSignInWithEmailLink, onAuthStateChanged, sendSignInLinkToEmail, signInWithCustomToken, signInWithEmailLink, signInWithPhoneNumber, signInWithPopup, signOut as firebaseSignOut, type User } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
 import { apiBaseUrl, auth, authPersistenceReady, db } from '../lib/firebase';
 import { AUTH_INTENT_TTL_MS, isFreshRegistrationCandidate, isValidRegistrationIntent, type RegistrationIntent } from './authRegistrationSecurity';
 import { formatPhoneAuthError, normalizeIraqiPhone } from '../lib/phoneAuth';
@@ -19,7 +19,52 @@ const asProfile = (value: any, id: string): Profile => ({ id, ...value, preferre
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null); const [profile, setProfile] = useState<Profile | null>(null); const [loading, setLoading] = useState(true); const [profileError, setProfileError] = useState<string | null>(null); const [authNotice, setAuthNotice] = useState<string | null>(null); const userLoadId = useRef(0);
-  const fetchProfile = useCallback(async (uid: string) => { const snapshot = await getDoc(doc(db, 'profiles', uid)); if (!snapshot.exists()) return null; const next = asProfile(snapshot.data(), uid); const table = next.role === 'PATIENT' ? 'patient_preferred_universities' : next.role === 'STUDENT' ? 'student_preferred_universities' : null; if (table) { const preferences = await getDocs(query(collection(db, table), where(next.role === 'PATIENT' ? 'patient_id' : 'student_id', '==', uid))); next.preferred_university_ids = preferences.docs.map((item) => item.data().university_id as string); } return next; }, []);
+  const fetchProfile = useCallback(async (uid: string) => {
+    const snapshot = await getDoc(doc(db, 'profiles', uid));
+    if (!snapshot.exists()) {
+      const intent = readAuthIntent();
+      const role: CustomerRole = intent?.role === 'STUDENT' ? 'STUDENT' : 'PATIENT';
+      const currentUser = auth.currentUser;
+      const initialProfile = {
+        id: uid,
+        role,
+        status: (role === 'PATIENT' ? 'VERIFIED' : 'PENDING') as 'VERIFIED' | 'PENDING',
+        full_name: (currentUser?.displayName || '').slice(0, 100),
+        phone: currentUser?.phoneNumber || '',
+        whatsapp: currentUser?.phoneNumber || null,
+        gender: null,
+        birth_date: null,
+        province_id: null,
+        area_id: null,
+        university_id: null,
+        stage: null,
+        workplace: null,
+        preferred_university_ids: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      try {
+        await setDoc(doc(db, 'profiles', uid), initialProfile);
+        return asProfile(initialProfile, uid);
+      } catch (createErr) {
+        console.warn('Auto-create initial profile document skipped or failed:', createErr);
+        return null;
+      }
+    }
+    const next = asProfile(snapshot.data(), uid);
+    const table = next.role === 'PATIENT' ? 'patient_preferred_universities' : next.role === 'STUDENT' ? 'student_preferred_universities' : null;
+    if (table) {
+      try {
+        const preferences = await getDocs(query(collection(db, table), where(next.role === 'PATIENT' ? 'patient_id' : 'student_id', '==', uid)));
+        if (preferences && preferences.docs.length > 0) {
+          next.preferred_university_ids = preferences.docs.map((item) => item.data().university_id as string);
+        }
+      } catch (preferencesError) {
+        console.warn('Optional preferred universities read failed:', preferencesError);
+      }
+    }
+    return next;
+  }, []);
   const handleUser = useCallback(async (nextUser: User | null) => {
     const loadId = ++userLoadId.current;
     setUser(nextUser);

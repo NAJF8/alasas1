@@ -6,12 +6,17 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function profileExists(uid) {
+      return exists(/databases/$(database)/documents/profiles/$(uid));
+    }
+
     function profile(uid) {
       return get(/databases/$(database)/documents/profiles/$(uid));
     }
 
     function verifiedRole(role) {
       return signedIn()
+        && profileExists(request.auth.uid)
         && profile(request.auth.uid).data.status == 'VERIFIED'
         && profile(request.auth.uid).data.role == role;
     }
@@ -98,7 +103,7 @@ service cloud.firestore {
     }
 
     match /patient_preferred_universities/{id} {
-      allow read, delete: if manager() || owner('patient_id');
+      allow read, delete: if owner('patient_id') || manager();
       allow create: if manager() || incomingOwner('patient_id');
       allow update: if manager()
         || (owner('patient_id')
@@ -107,7 +112,7 @@ service cloud.firestore {
     }
 
     match /student_preferred_universities/{id} {
-      allow read, delete: if manager() || owner('student_id');
+      allow read, delete: if owner('student_id') || manager();
       allow create: if manager() || incomingOwner('student_id');
       allow update: if manager()
         || (owner('student_id')
@@ -122,7 +127,7 @@ service cloud.firestore {
     }
 
     match /patient_cases/{id} {
-      allow read: if manager() || owner('patient_id');
+      allow read: if owner('patient_id') || manager();
       allow create: if manager()
         || (incomingOwner('patient_id') && request.resource.data.status == 'PENDING' && request.resource.data.is_approved_for_student_view == false);
       allow update: if (manager() && request.resource.data.status == resource.data.status)
@@ -151,7 +156,7 @@ service cloud.firestore {
     }
 
     match /student_requests/{id} {
-      allow read: if manager() || owner('student_id');
+      allow read: if owner('student_id') || manager();
       allow create: if manager()
         || (incomingOwner('student_id') && request.resource.data.status == 'PENDING');
       allow update: if (manager() && request.resource.data.status == resource.data.status)
@@ -188,7 +193,7 @@ service cloud.firestore {
     }
 
     match /notifications/{id} {
-      allow read: if manager() || owner('user_id');
+      allow read: if owner('user_id') || manager();
       allow update: if manager()
         || (owner('user_id')
           && incomingOwner('user_id')
