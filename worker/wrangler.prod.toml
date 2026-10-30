@@ -2,11 +2,12 @@ name = "alasas-dental-prod-worker"
 main = "src/index.ts"
 compatibility_date = "2026-10-21"
 workers_dev = true
+account_id = "d05e0aff35c06eadf40d2eac51a81d6a"
 
 [vars]
 FIREBASE_PROJECT_ID = "al-asas-dental-prod"
 ALLOWED_ORIGINS = "https://dental.alasas.tech,https://al-asas-dental-prod.web.app,https://al-asas-dental-prod.firebaseapp.com"
-RELEASE_SHA = "7615f03"
+RELEASE_SHA = "403394d"
 GITHUB_ASSET_REPOSITORY = "NAJF8/al-asas-assets"
 
 # Required production secrets:

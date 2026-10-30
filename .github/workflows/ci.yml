@@ -34,6 +34,9 @@ jobs:
           node --version
           npm test
 
+      - name: Run Production Seed Importer Regression Tests
+        run: node --test tools/migration/import-canonical-production-seed.test.mjs
+
       - name: Install Customer App Dependencies
         working-directory: customer-app
         run: npm ci

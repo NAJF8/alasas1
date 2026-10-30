@@ -16,3 +16,13 @@ dist-deploy/
 .wrangler
 .dev.vars*
 !.dev.vars.example
+
+# Backups, credentials, manifests and data dumps
+_backups/
+*.backup.*
+*auth-users*.json
+*serviceAccount*.json
+*.pem
+*.key
+credentials.json
+production-import-manifest.json
