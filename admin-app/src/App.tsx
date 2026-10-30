@@ -1,4 +1,3 @@
-
 import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom';
 import { Component, lazy, Suspense, type ErrorInfo, type ReactNode } from 'react';
 import { AuthProvider } from './context/AuthContext';
@@ -6,6 +5,7 @@ import { ProtectedAdminRoute } from './components/auth/ProtectedRoute';
 import { Login } from './pages/Login';
 import { RegistrationRequestsPage } from './pages/RegistrationRequestsPage';
 import { ManagerInvitePage } from './pages/ManagerInvitePage';
+import './components/layout/AdminLayout';
 const DashboardHome = lazy(() => import('./pages/DashboardHome').then((module) => ({ default: module.DashboardHome })));
 const ManagementPage = lazy(() => import('./pages/ManagementPage').then((module) => ({ default: module.ManagementPage })));
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then((module) => ({ default: module.SettingsPage })));

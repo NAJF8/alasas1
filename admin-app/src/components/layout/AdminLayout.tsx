@@ -2,48 +2,27 @@ import { Bell, BookOpen, CalendarDays, ChevronDown, FileHeart, FileText, LayoutD
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import {
+  type ThemeMode,
+  type LangMode,
+  THEME_KEY,
+  LANG_KEY,
+  resolveEffectiveTheme,
+  applyTheme,
+  applyLang,
+  readTheme,
+  readLang,
+} from '../../lib/theme';
 
-type ThemeMode = 'system' | 'light' | 'dark';
-type LangMode = 'ar' | 'en';
-const THEME_KEY = 'al-asas-theme';
-const LANG_KEY = 'al-asas-lang';
-
-const resolveEffectiveTheme = (mode: ThemeMode): 'light' | 'dark' => {
-  if (mode === 'light' || mode === 'dark') return mode;
-  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-  return 'light';
-};
-
-const applyTheme = (mode: ThemeMode) => {
-  if (typeof document === 'undefined') return;
-  const effective = resolveEffectiveTheme(mode);
-  document.documentElement.setAttribute('data-theme', effective);
-  document.documentElement.setAttribute('data-theme-mode', mode);
-  document.documentElement.classList.toggle('dark', effective === 'dark');
-};
-
-const applyLang = (lang: LangMode) => {
-  if (typeof document === 'undefined') return;
-  document.documentElement.lang = lang;
-  document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
-};
-
-const readTheme = (): ThemeMode => {
-  try {
-    const raw = localStorage.getItem(THEME_KEY);
-    if (raw === 'light' || raw === 'dark' || raw === 'system') return raw;
-  } catch { /* ignore */ }
-  return 'system';
-};
-
-const readLang = (): LangMode => {
-  try {
-    const raw = localStorage.getItem(LANG_KEY);
-    if (raw === 'ar' || raw === 'en') return raw;
-  } catch { /* ignore */ }
-  return 'ar';
+export type { ThemeMode, LangMode };
+export {
+  THEME_KEY,
+  LANG_KEY,
+  resolveEffectiveTheme,
+  applyTheme,
+  applyLang,
+  readTheme,
+  readLang,
 };
 
 if (typeof window !== 'undefined') {
@@ -84,6 +63,11 @@ export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     applyTheme(theme);
     try { localStorage.setItem(THEME_KEY, theme); } catch { /* ignore */ }
+    if (theme !== 'system' || typeof window === 'undefined' || !window.matchMedia) return;
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = () => applyTheme('system');
+    media.addEventListener?.('change', handler);
+    return () => media.removeEventListener?.('change', handler);
   }, [theme]);
 
   useEffect(() => {
