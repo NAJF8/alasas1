@@ -1,16 +1,113 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { firebaseData as supabase } from '../lib/firebaseData';
 
-export type SiteBranding = { platform_arabic_name: string; platform_english_name: string; short_name: string; logo_url: string | null; favicon_url: string | null; customer_header_logo_url: string | null; whatsapp?: string | null; whatsapp_label_ar?: string | null; whatsapp_label_en?: string | null; whatsapp_message?: string | null; whatsapp_enabled?: boolean; hero_image_url?: string | null; hero_title_ar?: string | null; hero_subtitle_ar?: string | null; site_description?: string | null; main_brand_color: string; secondary_color: string; accent_color: string; footer_text: string };
-const fallback: SiteBranding = { platform_arabic_name: 'أسنان الأساس', platform_english_name: 'Asnas Al-Asas', short_name: 'الأساس', logo_url: null, favicon_url: null, customer_header_logo_url: null, whatsapp: null, whatsapp_label_ar: 'تواصل معنا', whatsapp_label_en: 'Contact us', whatsapp_message: 'مرحباً، أحتاج مساعدة بخصوص منصة أسنان الأساس', whatsapp_enabled: true, hero_image_url: null, hero_title_ar: null, hero_subtitle_ar: null, site_description: null, main_brand_color: '#0d9f87', secondary_color: '#123d73', accent_color: '#12a895', footer_text: 'رعاية أسنان أفضل بالتعاون مع جامعات العراق.' };
+export type SiteBranding = {
+  platform_arabic_name: string;
+  platform_english_name: string;
+  short_name: string;
+  logo_url: string | null;
+  favicon_url: string | null;
+  customer_header_logo_url: string | null;
+  whatsapp?: string | null;
+  whatsapp_label_ar?: string | null;
+  whatsapp_label_en?: string | null;
+  whatsapp_message?: string | null;
+  whatsapp_enabled?: boolean;
+  hero_image_url?: string | null;
+  hero_title_ar?: string | null;
+  hero_subtitle_ar?: string | null;
+  site_description?: string | null;
+  main_brand_color: string;
+  secondary_color: string;
+  accent_color: string;
+  footer_text: string;
+};
+
+const fallback: SiteBranding = {
+  platform_arabic_name: 'الأساس لطب الأسنان',
+  platform_english_name: 'AL ASAS DENTAL',
+  short_name: 'الأساس',
+  logo_url: null,
+  favicon_url: null,
+  customer_header_logo_url: null,
+  whatsapp: null,
+  whatsapp_label_ar: 'تواصل معنا',
+  whatsapp_label_en: 'Contact us',
+  whatsapp_message: 'مرحباً، أحتاج مساعدة بخصوص منصة الأساس لطب الأسنان',
+  whatsapp_enabled: true,
+  hero_image_url: null,
+  hero_title_ar: null,
+  hero_subtitle_ar: null,
+  site_description: null,
+  main_brand_color: '#0d9f87',
+  secondary_color: '#123d73',
+  accent_color: '#12a895',
+  footer_text: 'رعاية أسنان أفضل بالتعاون مع جامعات العراق.',
+};
+
 const BrandingContext = createContext<SiteBranding>(fallback);
 let brandingPromise: Promise<SiteBranding> | null = null;
+
 const loadBranding = () => {
-  if (!brandingPromise) brandingPromise = Promise.resolve(supabase.from('branding_settings').select('platform_arabic_name,platform_english_name,short_name,logo_url,favicon_url,customer_header_logo_url,whatsapp,whatsapp_label_ar,whatsapp_label_en,whatsapp_message,whatsapp_enabled,main_brand_color,secondary_color,accent_color,footer_text').maybeSingle().then(({ data, error }) => {
-    if (error) { console.error('Branding load failed:', error.message); return fallback; }
-    return { ...fallback, ...(data || {}) } as SiteBranding;
-  }));
+  if (!brandingPromise) {
+    brandingPromise = Promise.resolve(
+      supabase
+        .from('branding_settings')
+        .select(
+          'platform_arabic_name,platform_english_name,short_name,logo_url,favicon_url,customer_header_logo_url,whatsapp,whatsapp_label_ar,whatsapp_label_en,whatsapp_message,whatsapp_enabled,main_brand_color,secondary_color,accent_color,footer_text'
+        )
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('Branding load failed:', error.message);
+            return fallback;
+          }
+          if (!data) return fallback;
+          const cleanData: Record<string, unknown> = {};
+          for (const [key, value] of Object.entries(data)) {
+            if (value !== undefined && value !== null && value !== '') {
+              cleanData[key] = value;
+            }
+          }
+          return { ...fallback, ...cleanData } as SiteBranding;
+        })
+    );
+  }
   return brandingPromise;
 };
-export const BrandingProvider = ({ children }: { children: React.ReactNode }) => { const [branding, setBranding] = useState(fallback); useEffect(() => { let active = true; void loadBranding().then((next) => { if (!active) return; setBranding(next); document.title = next.platform_arabic_name; if (next.favicon_url) { const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]') || document.createElement('link'); link.rel = 'icon'; link.href = next.favicon_url; document.head.appendChild(link); } document.documentElement.style.setProperty('--brand-primary', next.main_brand_color); document.documentElement.style.setProperty('--brand-secondary', next.secondary_color); document.documentElement.style.setProperty('--brand-accent', next.accent_color); }); return () => { active = false; }; }, []); return <BrandingContext.Provider value={branding}>{children}</BrandingContext.Provider>; };
+
+export const BrandingProvider = ({ children }: { children: React.ReactNode }) => {
+  const [branding, setBranding] = useState(fallback);
+
+  useEffect(() => {
+    let active = true;
+    void loadBranding().then((next) => {
+      if (!active) return;
+      setBranding(next);
+      const title = next.platform_arabic_name || fallback.platform_arabic_name;
+      if (title && title !== 'undefined') {
+        document.title = title;
+      } else {
+        document.title = 'الأساس لطب الأسنان';
+      }
+      if (next.favicon_url) {
+        const link =
+          document.querySelector<HTMLLinkElement>('link[rel="icon"]') ||
+          document.createElement('link');
+        link.rel = 'icon';
+        link.href = next.favicon_url;
+        document.head.appendChild(link);
+      }
+      document.documentElement.style.setProperty('--brand-primary', next.main_brand_color);
+      document.documentElement.style.setProperty('--brand-secondary', next.secondary_color);
+      document.documentElement.style.setProperty('--brand-accent', next.accent_color);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return <BrandingContext.Provider value={branding}>{children}</BrandingContext.Provider>;
+};
+
 export const useBranding = () => useContext(BrandingContext);
