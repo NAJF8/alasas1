@@ -1,16 +1,70 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import {
   computeSeedSha256,
   verifySeedFile,
   areFieldsEqual
 } from './import-canonical-production-seed.mjs';
 
+function createMockCanonicalSeed() {
+  const seed = {
+    source: 'al-asas-dental-staging',
+    target: 'al-asas-dental-prod',
+    version: '1.5.0',
+    generated_at: '2026-10-30T10:00:00.000Z',
+    collections: {
+      clinical_categories: {
+        count: 1,
+        items: [{
+          name: 'projects/al-asas-dental-prod/databases/(default)/documents/clinical_categories/cat1',
+          fields: { name: { stringValue: 'Category 1' } }
+        }]
+      },
+      universities: {
+        count: 1,
+        items: [{
+          name: 'projects/al-asas-dental-prod/databases/(default)/documents/universities/kufa',
+          fields: { name: { stringValue: 'جامعة الكوفة' } }
+        }]
+      },
+      provinces: {
+        count: 1,
+        items: [{
+          name: 'projects/al-asas-dental-prod/databases/(default)/documents/provinces/baghdad',
+          fields: { name: { stringValue: 'بغداد' } }
+        }]
+      },
+      areas: {
+        count: 1,
+        items: [{
+          name: 'projects/al-asas-dental-prod/databases/(default)/documents/areas/area1',
+          fields: { name: { stringValue: 'Area 1' } }
+        }]
+      },
+      subscription_plans: { count: 0, items: [] },
+      branding_settings: { count: 0, items: [] },
+      matching_settings: { count: 0, items: [] },
+      system_settings: { count: 0, items: [] },
+      profiles: {
+        count: 1,
+        items: [{
+          name: 'projects/al-asas-dental-prod/databases/(default)/documents/profiles/wmcFuqRQOWb82EW9XOuGVeVBoiF2',
+          fields: {
+            id: { stringValue: 'wmcFuqRQOWb82EW9XOuGVeVBoiF2' },
+            email: { stringValue: 'mohameadalhaear100@gmail.com' },
+            role: { stringValue: 'SUPER_ADMIN' },
+            status: { stringValue: 'VERIFIED' }
+          }
+        }]
+      }
+    }
+  };
+  seed.sha256 = computeSeedSha256(seed);
+  return seed;
+}
+
 test('Production Seed Importer: Cryptographic Hash Verification', async () => {
-  const seedPath = join(process.cwd(), '_backups', 'canonical-production-seed.json');
-  const seed = JSON.parse(await readFile(seedPath, 'utf8'));
+  const seed = createMockCanonicalSeed();
 
   // 1. Genuine seed passes verification
   const isValid = await verifySeedFile(seed);
@@ -38,8 +92,7 @@ test('Production Seed Importer: Cryptographic Hash Verification', async () => {
 });
 
 test('Production Seed Importer: Rejects Forbidden Clinical Collections', async () => {
-  const seedPath = join(process.cwd(), '_backups', 'canonical-production-seed.json');
-  const seed = JSON.parse(await readFile(seedPath, 'utf8'));
+  const seed = createMockCanonicalSeed();
 
   const badSeed = JSON.parse(JSON.stringify(seed));
   badSeed.collections.patient_cases = { count: 1, items: [{ name: 'case1' }] };
@@ -53,8 +106,7 @@ test('Production Seed Importer: Rejects Forbidden Clinical Collections', async (
 });
 
 test('Production Seed Importer: Strict Super Admin Profile Enforcement', async () => {
-  const seedPath = join(process.cwd(), '_backups', 'canonical-production-seed.json');
-  const seed = JSON.parse(await readFile(seedPath, 'utf8'));
+  const seed = createMockCanonicalSeed();
 
   // Reject non-owner profile
   const badProfileSeed = JSON.parse(JSON.stringify(seed));
