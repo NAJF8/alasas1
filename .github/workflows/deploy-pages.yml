@@ -1,8 +1,8 @@
 name: Deploy GitHub Pages
 
 on:
-  push:
-    branches: [main]
+  # Hard safety gate: automated deployment on merge is disabled to prevent accidental production overwrite of dental.alasas.tech.
+  # Production rollout to GitHub Pages requires explicit manual trigger via workflow_dispatch after full sign-off.
   workflow_dispatch:
 
 permissions:
@@ -59,7 +59,7 @@ jobs:
           mkdir -p dist-deploy/admin
           cp -R customer-app/dist/. dist-deploy/
           cp -R admin-app/dist/. dist-deploy/admin/
-          printf 'alasas.tech\n' > dist-deploy/CNAME
+          printf 'dental.alasas.tech\n' > dist-deploy/CNAME
           touch dist-deploy/.nojekyll
 
       - name: Configure Pages
