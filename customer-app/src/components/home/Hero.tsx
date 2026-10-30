@@ -9,7 +9,7 @@ export const Hero = ({ accountAction }: { accountAction: React.ReactNode }) => {
     <section className="hero-section">
       <div className="hero-copy">
         <div className="hero-kicker">
-          <span className="live-dot" /> منصة آمنة بالتعاون مع الجامعات
+          <span className="live-dot" /> منصة آمنة للتعاون مع الجامعات
         </div>
         <h1>
           {branding.hero_title_ar || 'رعاية أسنان أفضل'}
@@ -21,7 +21,7 @@ export const Hero = ({ accountAction }: { accountAction: React.ReactNode }) => {
             'نربط المرضى بطلاب طب الأسنان في الجامعات القريبة بطريقة منظمة وآمنة. ارفع حالتك أو اطلب الحالة التي تحتاجها، والإدارة تتولى المطابقة والتنسيق.'}
         </p>
         <div className="hero-actions">{accountAction}</div>
-        <div className="hero-note">
+        <div className="hero-note hero-note-desktop">
           <ShieldCheck size={17} /> لا نعرض رقم هاتفك أو بيانات التواصل لأي طرف آخر
         </div>
       </div>
@@ -41,11 +41,14 @@ export const Hero = ({ accountAction }: { accountAction: React.ReactNode }) => {
             <b>مطابقة مناسبة</b>
             <small>جامعة قريبة منك</small>
           </span>
-          <strong>مطابقة موثقة</strong>
+          <strong>مطابقة موثوقة</strong>
         </div>
         <div className="hero-float-chip">
           <span /> جامعات قريبة منك
         </div>
+      </div>
+      <div className="hero-note hero-note-mobile">
+        <ShieldCheck size={16} /> لا نعرض رقم هاتفك أو بيانات التواصل لأي طرف آخر
       </div>
       <div className="hero-scroll">
         <span>اكتشف المنصة</span>
