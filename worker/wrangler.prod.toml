@@ -7,7 +7,7 @@ account_id = "d05e0aff35c06eadf40d2eac51a81d6a"
 [vars]
 FIREBASE_PROJECT_ID = "al-asas-dental-prod"
 ALLOWED_ORIGINS = "https://dental.alasas.tech,https://al-asas-dental-prod.web.app,https://al-asas-dental-prod.firebaseapp.com"
-RELEASE_SHA = "403394d"
+RELEASE_SHA = "a583661"
 GITHUB_ASSET_REPOSITORY = "NAJF8/al-asas-assets"
 
 # Required production secrets:
