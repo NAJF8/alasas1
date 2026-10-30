@@ -30,8 +30,8 @@ export const Header = () => {
         {profile?.role === 'STUDENT' && <Link to="/student/verification" onClick={close}>توثيق الطالب</Link>}
         <Link to="/faq" onClick={close}>الأسئلة الشائعة</Link>
         {user && !loading ? <>
-          <Link className="mobile-account-link" to={complete ? '/dashboard' : '/onboarding'} onClick={close}>{complete ? 'حسابي' : 'أكمل حسابك'}</Link>
-          {complete && <Link className="mobile-account-link" to="/profile" onClick={close}>الملف الشخصي</Link>}
+          <Link className="mobile-account-link" to={complete ? '/dashboard' : '/profile'} onClick={close}>{complete ? 'حسابي' : 'تعديل الملف الشخصي'}</Link>
+          <Link className="mobile-account-link" to="/profile" onClick={close}>الملف الشخصي</Link>
           <button className="mobile-logout" onClick={logout}>تسجيل الخروج</button>
         </> : <>
           <Link className="mobile-auth-link" to="/login" onClick={close}>تسجيل الدخول</Link>
@@ -46,8 +46,8 @@ export const Header = () => {
           <Link className="primary-button header-cta" to="/register">إنشاء حساب</Link>
         </> : <>
           <span className="header-greeting">أهلاً، {name}</span>
-          <Link className="header-login" to={complete ? '/dashboard' : '/onboarding'}>{complete ? 'حسابي' : 'أكمل حسابك'}</Link>
-          {complete && <Link className="header-login inline-flex items-center gap-1" to="/profile" aria-label="تعديل الملف الشخصي"><UserCog size={15} /> الملف الشخصي</Link>}
+          <Link className="header-login" to={complete ? '/dashboard' : '/profile'}>{complete ? 'حسابي' : 'تعديل الملف الشخصي'}</Link>
+          <Link className="header-login inline-flex items-center gap-1" to="/profile" aria-label="تعديل الملف الشخصي"><UserCog size={15} /> الملف الشخصي</Link>
           {isAuthorizedAdmin && <a className="header-login" href="/admin/">لوحة الإدارة</a>}
           <button className="header-logout" onClick={logout}>تسجيل الخروج</button>
         </>}

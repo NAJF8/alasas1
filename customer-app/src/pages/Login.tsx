@@ -15,7 +15,12 @@ export const Login = () => {
   const [phone, setPhone] = useState(''); const [password, setPassword] = useState(''); const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false); const [error, setError] = useState<string | null>(null);
   if (loading) return <main className="aa-auth-loading" dir="rtl"><span className="aa-auth-loading-spinner" role="status" aria-label="جارٍ تحميل تسجيل الدخول" /></main>;
-  if (user) return <Navigate to={profile ? (profile.role !== 'PATIENT' && profile.role !== 'STUDENT' ? '/' : (isProfileComplete(profile) ? '/dashboard' : '/onboarding')) : '/register'} replace />;
+  if (user) {
+    if (!profile) return <Navigate to="/register" replace />;
+    if (profile.role !== 'PATIENT' && profile.role !== 'STUDENT') return <Navigate to="/" replace />;
+    if (!isProfileComplete(profile)) return <Navigate to="/profile" replace />;
+    return <Navigate to="/dashboard" replace />;
+  }
   const run = async (action: () => Promise<string | null>) => { setBusy(true); setError(null); setError(await action()); setBusy(false); };
   return <AuthLayout title="مرحباً بعودتك" description="سجّل دخولك للوصول إلى طلباتك وحالاتك ومتابعة رحلتك مع أسنان الأساس." footer={<p className="aa-auth-footer">ليس لديك حساب؟ <Link to="/register">إنشاء حساب جديد</Link></p>}>
     <div className="aa-auth-intro-mobile"><span>تسجيل الدخول</span><h1>مرحباً بعودتك</h1><p>اختر الطريقة المناسبة للدخول إلى حسابك.</p></div>

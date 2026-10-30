@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "test:registration": "node --experimental-strip-types scripts/registration-security.test.ts",
     "test:registration-flow": "node --experimental-strip-types scripts/registration-flow.test.ts",
+    "test:remove-complete-profile": "node --experimental-strip-types scripts/remove-complete-profile.test.ts",
     "test:theme": "node --experimental-strip-types scripts/theme-behavior.test.ts",
     "preview": "vite preview"
   },
