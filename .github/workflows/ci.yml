@@ -38,6 +38,12 @@ jobs:
         working-directory: customer-app
         run: npm ci
 
+      - name: Run Customer App Hermetic Tests
+        working-directory: customer-app
+        run: |
+          npm run test:registration
+          npm run test:registration-flow
+
       - name: Build Customer App
         working-directory: customer-app
         run: npm run build
@@ -45,6 +51,10 @@ jobs:
       - name: Install Admin App Dependencies
         working-directory: admin-app
         run: npm ci
+
+      - name: Run Admin App Hermetic Tests
+        working-directory: admin-app
+        run: npm run test:management-display
 
       - name: Build Admin App
         working-directory: admin-app

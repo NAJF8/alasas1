@@ -2,6 +2,7 @@ name = "alasas-dental-staging-worker"
 main = "src/index.ts"
 compatibility_date = "2026-10-21"
 workers_dev = true
+account_id = "d05e0aff35c06eadf40d2eac51a81d6a"
 
 [vars]
 FIREBASE_PROJECT_ID = "al-asas-dental-staging"

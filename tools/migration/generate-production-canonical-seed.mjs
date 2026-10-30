@@ -43,6 +43,8 @@ async function main() {
   const authenticCategories = categories.filter(c => !c.name.includes('test_'));
   
   // Super admin and authentic team profiles only (filter out synthetic test patients/students/admins)
+  // Super Admin in Production is strictly bound to Production Auth UID (wmcFuqRQOWb82EW9XOuGVeVBoiF2)
+  const PROD_SUPERADMIN_UID = 'wmcFuqRQOWb82EW9XOuGVeVBoiF2';
   const authenticProfiles = profiles.filter(p => {
     const fields = p.fields || {};
     const email = fields.email?.stringValue || '';
@@ -51,6 +53,13 @@ async function main() {
     if (fullName.includes('تجريب') || fullName.includes('فحص') || fullName.includes('Test') || fullName.includes('audit-')) return false;
     if (fields.role?.stringValue === 'SUPER_ADMIN') return true;
     return false;
+  }).map(p => {
+    const clone = JSON.parse(JSON.stringify(p));
+    if (clone.fields?.email?.stringValue === 'mohameadalhaear100@gmail.com') {
+      clone.name = `projects/${PROD_PROJECT}/databases/(default)/documents/profiles/${PROD_SUPERADMIN_UID}`;
+      clone.fields.id = { stringValue: PROD_SUPERADMIN_UID };
+    }
+    return clone;
   });
 
   const payload = {
