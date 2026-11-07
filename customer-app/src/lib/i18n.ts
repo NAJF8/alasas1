@@ -1,4 +1,5 @@
 import { useCallback, useSyncExternalStore } from 'react';
+import { enMore } from './i18nMore';
 import { LANG_KEY, applyLangToDom, readStoredLang, type LangMode } from './theme';
 
 // Shared language store: the language toggle and every translated component
@@ -24,7 +25,7 @@ const subscribe = (listener: () => void) => {
 export const useLang = (): LangMode => useSyncExternalStore(subscribe, getLang, () => 'ar');
 
 // Arabic text is the source/key. Missing entries fall back to the Arabic text.
-const en: Record<string, string> = {
+export const en: Record<string, string> = {
   // header / nav
   'كيف تعمل المنصة': 'How it works',
   'للمرضى': 'For patients',
@@ -135,7 +136,7 @@ const en: Record<string, string> = {
   'Switch language to Arabic': 'Switch language to Arabic',
 };
 
-export const translate = (lang: LangMode, text: string): string => (lang === 'en' ? en[text] ?? text : text);
+export const translate = (lang: LangMode, text: string): string => (lang === 'en' ? en[text] ?? enMore[text] ?? text : text);
 
 export const useT = () => {
   const lang = useLang();
