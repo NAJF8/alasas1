@@ -1,52 +1,47 @@
-# منصة أسنان الأساس - Asnan Al-Asas
+# منصة أسنان الأساس — AL ASAS Dental
 
-تم بناء المنصة كمشروعين منفصلين (Monorepo-style) لضمان الأمان وقابلية التوسع، وهما يتشاركان نفس قاعدة البيانات (Supabase).
+مشروعان React 19 + Vite + TypeScript يتشاركان نفس الواجهة الخلفية:
 
-## بنية المشروع
+- **`customer-app/`**: واجهة المرضى والطلبة (RTL عربي).
+- **`admin-app/`**: لوحة تحكم الإدارة.
+- **`worker/`**: Cloudflare Worker (`alasas-dental-prod-worker`) — يتحقق من Firebase ID tokens، ويكتب إلى Firestore بحساب الخدمة، ويدير الصور الطبية (R2) والوسائط العامة.
+- **`firestore.rules` / `firestore.indexes.json`**: قواعد وفهارس Firestore.
 
-1. **`customer-app/`**: واجهة المرضى والطلاب/الأطباء.
-   - مبني باستخدام React + Vite + TypeScript + Tailwind CSS.
-   - يدعم RTL بشكل كامل بخطوط عربية (IBM Plex Sans Arabic / Tajawal).
-   - يحتوي على معالج (Wizard) لرفع حالات المرضى، وصفحة للطلاب للبحث عن الحالات بدون بيانات شخصية.
+> انتقل المشروع من Supabase إلى Firebase + Cloudflare Worker. ملفات `supabase/` و`supabase_*.sql` تاريخية فقط ولا تُستخدم في التشغيل.
 
-2. **`admin-app/`**: لوحة تحكم الإدارة.
-   - مبني باستخدام نفس التقنيات، مخصص لإدارة المنصة.
-   - يحتوي على إحصائيات، إدارة الحالات، والتحكم بالمطابقات بين الطلاب والمرضى.
+## الإعداد المحلي
 
-3. **`supabase_schema.sql`**: ملف يحتوي على تصميم قاعدة البيانات (الجداول والعلاقات) ليتم تنفيذه في Supabase.
+لا توجد قيم افتراضية للإنتاج: يجب ضبط متغيرات البيئة صراحة، وإلا يفشل التطبيق عند التحميل.
 
-## طريقة التشغيل محلياً
-
-### 1. تطبيق العملاء (المرضى والطلاب)
 ```bash
-cd customer-app
-npm install
+cd customer-app   # أو admin-app
+cp .env.example .env.local   # قيم staging
+npm ci
 npm run dev
 ```
-سيعمل التطبيق عادة على `http://localhost:5173`
 
-### 2. لوحة تحكم الإدارة
+المتغيرات المطلوبة: `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID`, `VITE_FIREBASE_BACKEND_URL`.
+
+## الاختبارات
+
 ```bash
-cd admin-app
-npm install
-npm run dev
-```
-سيعمل التطبيق عادة على منفذ آخر مثل `http://localhost:5174`
-
-## إعداد قاعدة البيانات (Supabase)
-
-1. قم بإنشاء مشروع جديد في [Supabase](https://supabase.com/).
-2. انسخ محتوى الملف `supabase_schema.sql` وقم بتشغيله في نافذة **SQL Editor** داخل Supabase لإنشاء الجداول.
-3. انسخ `Project URL` و `anon key` من إعدادات Supabase.
-4. قم بإنشاء ملف `.env.local` في مجلد `customer-app` ومجلد `admin-app` كالتالي:
-
-```env
-VITE_SUPABASE_URL=your-project-url
-VITE_SUPABASE_ANON_KEY=your-anon-key
+cd worker && npm ci && npm test && npm run typecheck
+cd customer-app && npm ci && npm run lint && npm run test:registration   # وبقية سكربتات test:*
+cd admin-app && npm ci && npm run lint && npm run test:management-display
 ```
 
-## المطابقة الذكية (AI Matching) و WhatsApp
+## أسرار الـ Worker (Cloudflare secrets)
 
-- **المطابقة الذكية**: تم تصميم الجداول لتخزين الـ Tags ونسبة المطابقة التي سيتم توليدها عبر **Edge Functions** في Supabase (حتى لا يتم فضح مفتاح الـ API في الواجهة الأمامية).
-- **إشعارات WhatsApp**: ستتم أيضاً عن طريق الـ Backend/Edge Functions استجابة لتغير حالات الطلبات في قاعدة البيانات (مثل تحول `match_status` إلى `POTENTIAL`).
-- **الخصوصية (RLS)**: يجب تفعيل سياسات Row Level Security في Supabase لضمان عدم رؤية الطالب لبيانات المريض الشخصية أبداً، حيث يتم ذلك حالياً عن طريق جلب البيانات المرئية للطلاب فقط (العمر، المحافظة، الأعراض) بدون معلومات الاتصال.
+- `FIREBASE_SERVICE_ACCOUNT_JSON` — حساب خدمة المشروع.
+- `STORAGE_TOKEN_SECRET` — سر عشوائي (32 حرفًا على الأقل) لتوقيع روابط تحميل الصور الطبية. بدونه تفشل التنزيلات الموقعة بـ 503 (fail-closed).
+
+```bash
+openssl rand -base64 48 | npx wrangler secret put STORAGE_TOKEN_SECRET --config wrangler.prod.toml
+```
+
+## النشر
+
+- النشر إلى الإنتاج يدوي فقط (`deploy-pages.yml` عبر `workflow_dispatch`) بعد المراجعة.
+- تغييرات الـ Worker: `npx wrangler deploy --config wrangler.prod.toml` بعد ضبط الأسرار.
+- قواعد Firestore: `firebase deploy --only firestore:rules --project al-asas-dental-prod`.
+- اتبع `AGENTS.md`: فرع staging وPR قابل للمراجعة لأي تغيير جوهري.

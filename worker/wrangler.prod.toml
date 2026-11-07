@@ -12,5 +12,6 @@ GITHUB_ASSET_REPOSITORY = "NAJF8/al-asas-assets"
 
 # Required production secrets:
 # - FIREBASE_SERVICE_ACCOUNT_JSON: Service Account JSON for `al-asas-dental-prod`
+# - STORAGE_TOKEN_SECRET: random >=32 chars; signs private download URLs (fail-closed if missing)
 # Deploy command:
 #   `npx wrangler deploy --config wrangler.prod.toml`

@@ -88,3 +88,13 @@ test('profile-update rejects non-customer roles, forbidden fields, and binds str
   // Super Admin cannot be suspended or downgraded
   assert.match(source, /if \(current\.role === 'SUPER_ADMIN' \|\| String\(current\.email \|\| ''\)\.toLowerCase\(\) === 'mohameadalhaear100@gmail\.com'\) error\('FORBIDDEN', 403\);/);
 });
+
+test('signed storage download tokens fail closed without a dedicated secret and never derive from the service account', async () => {
+  const source = await readFile(new URL('./index.ts', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /private_key\.slice/);
+  assert.match(source, /env\.STORAGE_TOKEN_SECRET/);
+  const forged = `${btoa('{"path":"cases/a/b","sub":"x","exp":9999999999}')}.AAAA`;
+  const response = await request(`/api/storage/download?path=cases/a/b&token=${forged}`, { method: 'GET' });
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).error, 'BACKEND_SECRET_NOT_CONFIGURED');
+});

@@ -3,7 +3,7 @@ import { scrypt as nodeScrypt } from 'node:crypto';
 import { promisify } from 'node:util';
 
 const scrypt = promisify(nodeScrypt);
-type Env = { FIREBASE_PROJECT_ID: string; FIREBASE_SERVICE_ACCOUNT_JSON?: string; ALLOWED_ORIGINS?: string; RELEASE_SHA?: string; MEDICAL_IMAGES?: R2Bucket; GITHUB_ASSET_REPOSITORY?: string; GITHUB_APP_ID?: string; GITHUB_INSTALLATION_ID?: string; GITHUB_PRIVATE_KEY?: string; PUBLIC_MEDIA_MAX_BYTES?: string };
+type Env = { FIREBASE_PROJECT_ID: string; FIREBASE_SERVICE_ACCOUNT_JSON?: string; STORAGE_TOKEN_SECRET?: string; ALLOWED_ORIGINS?: string; RELEASE_SHA?: string; MEDICAL_IMAGES?: R2Bucket; GITHUB_ASSET_REPOSITORY?: string; GITHUB_APP_ID?: string; GITHUB_INSTALLATION_ID?: string; GITHUB_PRIVATE_KEY?: string; PUBLIC_MEDIA_MAX_BYTES?: string };
 type Claims = { sub: string; aud: string; iss: string; exp: number; email?: string };
 type Doc = { name: string; fields?: Record<string, any>; updateTime?: string };
 type Write = { update?: { name: string; fields: Record<string, any> }; updateMask?: { fieldPaths: string[] }; delete?: string; currentDocument?: { exists?: boolean; updateTime?: string } };
@@ -176,10 +176,14 @@ const customToken = async (env: Env, uid: string) => { const account = parseServ
 const requireRole = async (env: Env, actor: Claims, roles: string[]) => { const doc = await getDoc(env, 'profiles', actor.sub); const profile = fromDoc(doc) as Record<string, any> | null; if (!profile || profile.status !== 'VERIFIED' || !roles.includes(profile.role)) error('FORBIDDEN', 403); return profile; };
 const transition = (current: string, next: string, allowed: Record<string, string[]>) => { if (!allowed[current]?.includes(next)) error('INVALID_STATUS_TRANSITION', 409); };
 
+const storageTokenKey = async (env: Env, usage: 'sign' | 'verify') => {
+  const secret = env.STORAGE_TOKEN_SECRET || '';
+  if (secret.length < 32) error('BACKEND_SECRET_NOT_CONFIGURED', 503);
+  return crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, [usage]);
+};
+
 const signStorageToken = async (env: Env, payload: Record<string, unknown>) => {
-  const account = parseServiceAccount(env);
-  const secretBytes = new TextEncoder().encode(`${account.client_email}:${account.private_key.slice(0, 120)}`);
-  const key = await crypto.subtle.importKey('raw', secretBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const key = await storageTokenKey(env, 'sign');
   const body = b64(new TextEncoder().encode(JSON.stringify(payload)));
   const sig = b64(new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(body))));
   return `${body}.${sig}`;
@@ -188,9 +192,7 @@ const signStorageToken = async (env: Env, payload: Record<string, unknown>) => {
 const verifyStorageToken = async (env: Env, token: string): Promise<Record<string, any>> => {
   const parts = String(token || '').split('.');
   if (parts.length !== 2) error('INVALID_SIGNED_URL', 403);
-  const account = parseServiceAccount(env);
-  const secretBytes = new TextEncoder().encode(`${account.client_email}:${account.private_key.slice(0, 120)}`);
-  const key = await crypto.subtle.importKey('raw', secretBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
+  const key = await storageTokenKey(env, 'verify');
   let valid = false;
   try {
     valid = await crypto.subtle.verify('HMAC', key, unb64(parts[1]), new TextEncoder().encode(parts[0]));
@@ -1187,13 +1189,13 @@ const publicMedia = async (request: Request, env: Env, actor: Claims, url: URL) 
     return json({ ok: true, media_id: mediaId });
   }
   if (!['upload', 'replace'].includes(operation)) error('INVALID_OPERATION', 400);
-  const mime = String(input.mime_type || ''); const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
+  const mime = String(input.mime_type || ''); const allowed = ['image/png', 'image/jpeg', 'image/webp']; // SVG uploads are rejected (script/XSS risk)
   if (!allowed.includes(mime) || typeof input.base64 !== 'string') error('INVALID_PUBLIC_MEDIA', 400);
   let bytes: Uint8Array; try { bytes = Uint8Array.from(atob(input.base64), (c) => c.charCodeAt(0)); } catch { error('INVALID_PUBLIC_MEDIA', 400); }
   const max = Math.min(8 * 1024 * 1024, Number(env.PUBLIC_MEDIA_MAX_BYTES || 5 * 1024 * 1024)); if (!bytes.length || bytes.length > max) error('PUBLIC_MEDIA_TOO_LARGE', 400);
   const existingId = operation === 'replace' ? String(input.media_id || '') : ''; const existing = existingId ? fromDoc(await getDoc(env, 'public_media_assets', existingId)) as Record<string, any> | null : null;
   if (operation === 'replace' && (!existing?.path || !existing.github_sha || !existing.public_url)) error('MEDIA_NOT_FOUND', 404);
-  const mediaId = existingId || id(); const extension = mime === 'image/svg+xml' ? 'svg' : mime.split('/')[1]; const safeName = String(input.file_name || 'image').replace(/[^a-zA-Z0-9._-]/g, '-').slice(0, 80);
+  const mediaId = existingId || id(); const extension = mime.split('/')[1]; const safeName = String(input.file_name || 'image').replace(/[^a-zA-Z0-9._-]/g, '-').slice(0, 80);
   const path = operation === 'replace' ? String(existing.path) : `public/${new Date().toISOString().slice(0, 10)}/${mediaId}-${safeName}.${extension}`;
   const created = await githubContents(env, path, { method: 'PUT', body: JSON.stringify({ message: `${operation === 'replace' ? 'Replace' : 'Add'} public staging media ${mediaId}`, content: base64Bytes(bytes), ...(operation === 'replace' ? { sha: existing.github_sha } : {}) }) });
   const publicUrl = `https://raw.githubusercontent.com/${env.GITHUB_ASSET_REPOSITORY}/${created.commit.sha}/${path}`;

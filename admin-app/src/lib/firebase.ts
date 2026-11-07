@@ -1,14 +1,31 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
-import { getAuth, browserLocalPersistence, GoogleAuthProvider, setPersistence, signInWithCustomToken } from 'firebase/auth';
+import { getAuth, browserLocalPersistence, GoogleAuthProvider, setPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
+const requiredEnv = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  backendUrl: import.meta.env.VITE_FIREBASE_BACKEND_URL,
+} as Record<string, string | undefined>;
+
+// No silent production defaults: a build without explicit Firebase/Worker
+// configuration must fail loudly instead of reading or writing production.
+const missingEnv = Object.entries(requiredEnv).filter(([, value]) => !value).map(([key]) => key);
+if (missingEnv.length) {
+  throw new Error(`Missing Firebase environment configuration: ${missingEnv.join(', ')}. Set the VITE_FIREBASE_* variables (see .env.example).`);
+}
+
 const config = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDRTjsQ40m3atrNEc7MCp_j0FZOAKe4FRc',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'al-asas-dental-prod.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'al-asas-dental-prod',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'al-asas-dental-prod.firebasestorage.app',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '601386969849',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:601386969849:web:4c05dcc7dc3f81e5bc9028',
+  apiKey: requiredEnv.apiKey,
+  authDomain: requiredEnv.authDomain,
+  projectId: requiredEnv.projectId,
+  storageBucket: requiredEnv.storageBucket,
+  messagingSenderId: requiredEnv.messagingSenderId,
+  appId: requiredEnv.appId,
 };
 
 export const firebaseApp = getApps().length ? getApp() : initializeApp(config);
@@ -18,8 +35,5 @@ export const googleProvider = new GoogleAuthProvider();
 export const authPersistenceReady = setPersistence(auth, browserLocalPersistence);
 export const configurationError = null;
 export const getOAuthRedirectUrl = () => new URL(import.meta.env.BASE_URL || '/', window.location.origin).toString();
-export const apiBaseUrl = (import.meta.env.VITE_FIREBASE_BACKEND_URL || 'https://alasas-dental-prod-worker.coffee101.workers.dev').replace(/\/$/, '');
+export const apiBaseUrl = (requiredEnv.backendUrl as string).replace(/\/$/, '');
 
-if (typeof window !== 'undefined') {
-  (window as any).__signInAdminWithCustomToken = (token: string) => signInWithCustomToken(auth, token);
-}

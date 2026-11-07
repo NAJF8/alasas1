@@ -6,6 +6,9 @@ dist-deploy/
 .env.local
 .env.*.local
 !.env.example
+.env.production
+.env.*.production
+!.env.production.example
 *.log
 .DS_Store
 .idea/
@@ -27,3 +30,9 @@ _backups/
 credentials.json
 production-import-manifest.json
 _evidence_screenshots/
+
+# Local secrets and legacy Supabase data (never commit)
+supabase/.temp/
+**/docker.env
+production_*_backup_*.sql
+phase2_git_status_*.txt
