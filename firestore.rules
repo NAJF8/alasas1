@@ -6,12 +6,17 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function profileExists(uid) {
+      return exists(/databases/$(database)/documents/profiles/$(uid));
+    }
+
     function profile(uid) {
       return get(/databases/$(database)/documents/profiles/$(uid));
     }
 
     function verifiedRole(role) {
       return signedIn()
+        && profileExists(request.auth.uid)
         && profile(request.auth.uid).data.status == 'VERIFIED'
         && profile(request.auth.uid).data.role == role;
     }
@@ -98,7 +103,7 @@ service cloud.firestore {
     }
 
     match /patient_preferred_universities/{id} {
-      allow read, delete: if manager() || owner('patient_id');
+      allow read, delete: if owner('patient_id') || manager();
       allow create: if manager() || incomingOwner('patient_id');
       allow update: if manager()
         || (owner('patient_id')
@@ -107,7 +112,7 @@ service cloud.firestore {
     }
 
     match /student_preferred_universities/{id} {
-      allow read, delete: if manager() || owner('student_id');
+      allow read, delete: if owner('student_id') || manager();
       allow create: if manager() || incomingOwner('student_id');
       allow update: if manager()
         || (owner('student_id')
@@ -122,9 +127,10 @@ service cloud.firestore {
     }
 
     match /patient_cases/{id} {
-      allow read: if manager() || owner('patient_id');
-      allow create: if manager()
-        || (incomingOwner('patient_id') && request.resource.data.status == 'PENDING' && request.resource.data.is_approved_for_student_view == false);
+      allow read: if owner('patient_id') || manager();
+      // Customer submissions are created by the Worker (service account);
+      // clients cannot create case documents directly.
+      allow create: if manager();
       allow update: if (manager() && request.resource.data.status == resource.data.status)
         || (owner('patient_id')
           && incomingOwner('patient_id')
@@ -145,15 +151,15 @@ service cloud.firestore {
     match /case_images/{id} {
       allow read: if manager()
         || (signedIn() && get(/databases/$(database)/documents/patient_cases/$(resource.data.case_id)).data.patient_id == request.auth.uid);
-      allow create: if manager()
-        || (signedIn() && get(/databases/$(database)/documents/patient_cases/$(request.resource.data.case_id)).data.patient_id == request.auth.uid);
-      allow update, delete: if manager();
+      // Image metadata is written only by the Worker after upload validation.
+      // Clients must not create documents pointing at arbitrary storage paths.
+      allow create, update, delete: if manager();
     }
 
     match /student_requests/{id} {
-      allow read: if manager() || owner('student_id');
-      allow create: if manager()
-        || (incomingOwner('student_id') && request.resource.data.status == 'PENDING');
+      allow read: if owner('student_id') || manager();
+      // Student requests are created by the Worker (service account).
+      allow create: if manager();
       allow update: if (manager() && request.resource.data.status == resource.data.status)
         || (owner('student_id')
           && incomingOwner('student_id')
@@ -188,7 +194,7 @@ service cloud.firestore {
     }
 
     match /notifications/{id} {
-      allow read: if manager() || owner('user_id');
+      allow read: if owner('user_id') || manager();
       allow update: if manager()
         || (owner('user_id')
           && incomingOwner('user_id')
@@ -198,8 +204,12 @@ service cloud.firestore {
 
     match /support_tickets/{id} {
       allow read: if manager() || owner('user_id');
-      allow create: if manager() || incomingOwner('user_id');
-      allow update: if manager() || (owner('user_id') && incomingOwner('user_id'));
+      allow create: if manager()
+        || (incomingOwner('user_id')
+          && request.resource.data.diff({}).affectedKeys().hasOnly([
+            'user_id', 'subject', 'message', 'category', 'priority', 'created_at', 'updated_at'
+          ]));
+      allow update: if manager();
       allow delete: if manager();
     }
 

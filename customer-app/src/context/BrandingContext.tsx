@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { firebaseData as supabase } from '../lib/firebaseData';
+import { firebaseData } from '../lib/firebaseData';
 
 export type SiteBranding = {
   platform_arabic_name: string;
@@ -51,7 +51,7 @@ let brandingPromise: Promise<SiteBranding> | null = null;
 const loadBranding = () => {
   if (!brandingPromise) {
     brandingPromise = Promise.resolve(
-      supabase
+      firebaseData
         .from('branding_settings')
         .select(
           'platform_arabic_name,platform_english_name,short_name,logo_url,favicon_url,customer_header_logo_url,whatsapp,whatsapp_label_ar,whatsapp_label_en,whatsapp_message,whatsapp_enabled,main_brand_color,secondary_color,accent_color,footer_text'

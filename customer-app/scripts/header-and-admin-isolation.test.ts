@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+
+const projectRoot = existsSync(resolve('customer-app')) ? resolve('.') : resolve('..');
 
 console.log('--- RUNNING HEADER & ADMIN ISOLATION SECURITY SUITE ---');
 
@@ -78,7 +80,7 @@ assert.equal(superAdminHeader.hasAdminLink, false, 'Super Admin must NOT see adm
 assert.equal(superAdminHeader.hasLogout, true);
 
 // 2. Verify Header.tsx source code guarantees
-const headerSource = readFileSync(resolve('customer-app/src/components/layout/Header.tsx'), 'utf8');
+const headerSource = readFileSync(resolve(projectRoot, 'customer-app/src/components/layout/Header.tsx'), 'utf8');
 assert.doesNotMatch(headerSource, /href="\/admin\/"/, 'Header.tsx must NOT contain any link to /admin/');
 assert.doesNotMatch(headerSource, />لوحة الإدارة</, 'Header.tsx must NOT render text "لوحة الإدارة"');
 assert.doesNotMatch(headerSource, />حسابي</, 'Header.tsx must NOT duplicate links as "حسابي"');
@@ -86,19 +88,19 @@ assert.doesNotMatch(headerSource, />تعديل الملف الشخصي</, 'Heade
 assert.match(headerSource, /isCustomer && \(\s*<Link className="header-login inline-flex items-center gap-1" to="\/profile"/, 'Header.tsx must only show "الملف الشخصي" to customer roles');
 
 // 3. Verify ProfilePage.tsx source code guarantees
-const profilePageSource = readFileSync(resolve('customer-app/src/pages/ProfilePage.tsx'), 'utf8');
+const profilePageSource = readFileSync(resolve(projectRoot, 'customer-app/src/pages/ProfilePage.tsx'), 'utf8');
 assert.match(profilePageSource, /const isCustomer = profile\.role === 'PATIENT' \|\| profile\.role === 'STUDENT';/, 'ProfilePage must isolate non-customers');
 assert.match(profilePageSource, /if \(!isCustomer\) \{/, 'ProfilePage must guard against administrative roles');
 assert.match(profilePageSource, /حساب إداري محمي/, 'ProfilePage must render admin isolation card');
 assert.match(profilePageSource, /href="\/admin\/"/, 'ProfilePage must guide admins to /admin/');
 
 // 4. Verify App.tsx routing protection
-const appSource = readFileSync(resolve('customer-app/src/App.tsx'), 'utf8');
+const appSource = readFileSync(resolve(projectRoot, 'customer-app/src/App.tsx'), 'utf8');
 assert.match(appSource, /\['ADMIN', 'SUPER_ADMIN', 'STAFF'\]\.includes\(profile\.role\)/, 'App.tsx must guard customer dashboards from admin roles');
 assert.doesNotMatch(appSource, /<Route path="\/complete-profile" element={<CompleteProfile/, 'complete-profile must not exist as a route');
 
 // 5. Verify firestore.rules security
-const rulesSource = readFileSync(resolve('firestore.rules'), 'utf8');
+const rulesSource = readFileSync(resolve(projectRoot, 'firestore.rules'), 'utf8');
 assert.match(rulesSource, /resource\.data\.role in \['PATIENT', 'STUDENT'\]/, 'firestore.rules must restrict client profile updates to PATIENT and STUDENT');
 assert.match(rulesSource, /resource\.data\.role != 'SUPER_ADMIN' && request\.auth\.uid != uid/, 'firestore.rules must protect SUPER_ADMIN from deletion and self-tampering');
 
