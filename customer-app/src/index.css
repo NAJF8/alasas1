@@ -175,6 +175,11 @@ body { background: #f5fafc; color: var(--aa-ink); }
 .header-nav a { position: relative; padding: 8px 0; }
 .header-nav a::after { content: ''; position: absolute; inset-inline: 0; bottom: 0; height: 2px; border-radius: 4px; background: var(--aa-teal); transform: scaleX(0); transition: transform .2s ease; }
 .header-nav a:hover::after { transform: scaleX(1); }
+/* Desktop: links live in .mobile-drawer-links, give them real spacing (RTL/LTR safe) */
+@media (min-width: 861px) {
+  .header-nav .mobile-drawer-links { display: flex; align-items: center; gap: 30px; }
+  .header-nav .mobile-drawer-links a { white-space: nowrap; }
+}
 .header-actions { display: flex; align-items: center; flex-wrap: nowrap; gap: 12px; }
 .icon-button, .menu-button { width: 40px; height: 40px; border-radius: 12px; color: #7893a5; transition: .2s ease; }
 .icon-button:hover, .menu-button:hover { color: var(--aa-blue); background: #eef7fb; }
@@ -1206,3 +1211,7 @@ html[data-theme="dark"] .hero-float-card span b {
 html[data-theme="dark"] .trust-strip > div {
   border-inline-end-color: #213c5c !important;
 }
+
+/* LTR (English): mirror directional arrow/chevron icons that are authored for RTL */
+html[dir='ltr'] .lucide-arrow-left,
+html[dir='ltr'] .lucide-chevron-left { transform: scaleX(-1); }

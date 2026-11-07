@@ -1,5 +1,6 @@
 import { Monitor, Moon, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { setLang, useLang, useT } from '../../lib/i18n';
 import { Link } from 'react-router-dom';
 import {
   type ThemeMode,
@@ -31,7 +32,7 @@ if (typeof window !== 'undefined') {
 
 export const PreferencesControls = ({ compact = false }: { compact?: boolean }) => {
   const [theme, setTheme] = useState<ThemeMode>(readStoredTheme);
-  const [lang, setLang] = useState<LangMode>(readStoredLang);
+  const lang = useLang();
 
   useEffect(() => {
     applyThemeToDom(theme);
@@ -43,13 +44,8 @@ export const PreferencesControls = ({ compact = false }: { compact?: boolean }) 
     return () => media.removeEventListener?.('change', handler);
   }, [theme]);
 
-  useEffect(() => {
-    applyLangToDom(lang);
-    try { localStorage.setItem(LANG_KEY, lang); } catch { /* ignore */ }
-  }, [lang]);
-
   return (
-    <div className={`asas-prefs-bar ${compact ? 'is-compact' : ''}`} role="group" aria-label="إعدادات العرض واللغة">
+    <div className={`asas-prefs-bar ${compact ? 'is-compact' : ''}`} role="group" aria-label={lang === 'ar' ? 'إعدادات العرض واللغة' : 'Display and language settings'}>
       <div className="asas-theme-capsule" role="radiogroup" aria-label="المظهر">
         <button
           type="button"
@@ -90,7 +86,7 @@ export const PreferencesControls = ({ compact = false }: { compact?: boolean }) 
         type="button"
         className="asas-lang-capsule"
         aria-label={lang === 'ar' ? 'تغيير اللغة إلى الإنجليزية' : 'Switch language to Arabic'}
-        onClick={() => setLang((current) => (current === 'ar' ? 'en' : 'ar'))}
+        onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
       >
         <span className={`asas-lang-option ${lang === 'ar' ? 'is-active' : ''}`}>
           <svg className="asas-flag-icon" viewBox="0 0 24 16" aria-hidden="true">
@@ -119,22 +115,23 @@ export const PreferencesControls = ({ compact = false }: { compact?: boolean }) 
 const currentYear = new Date().getFullYear();
 
 export const CustomerFooter = () => {
+  const { t } = useT();
   return (
     <footer className="customer-footer">
       <div>
         <div className="brand-lockup">
           <div className="brand-tooth">✦</div>
-          <span>أسنان الأساس<small>منصة تربط المرضى بطلاب طب الأسنان</small></span>
+          <span>{t('أسنان الأساس')}<small>{t('منصة تربط المرضى بطلاب طب الأسنان')}</small></span>
         </div>
-        <p>رعاية أسنان أفضل بالتعاون مع جامعات العراق.</p>
+        <p>{t('رعاية أسنان أفضل بالتعاون مع جامعات العراق.')}</p>
       </div>
       <div className="footer-links">
-        <Link to="/how-it-works">كيف تعمل المنصة</Link>
-        <Link to="/patients">للمرضى</Link>
-        <Link to="/students">للطلاب</Link>
-        <Link to="/faq">الأسئلة الشائعة</Link>
+        <Link to="/how-it-works">{t('كيف تعمل المنصة')}</Link>
+        <Link to="/patients">{t('للمرضى')}</Link>
+        <Link to="/students">{t('للطلاب')}</Link>
+        <Link to="/faq">{t('الأسئلة الشائعة')}</Link>
       </div>
-      <small>© {currentYear} جميع الحقوق محفوظة لشركة الأساس للحلول البرمجية — Version 1.5.0</small>
+      <small>© {currentYear} {t('جميع الحقوق محفوظة لشركة الأساس للحلول البرمجية')} — Version 1.5.0</small>
     </footer>
   );
 };

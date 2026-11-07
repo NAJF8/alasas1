@@ -19,6 +19,7 @@ import { Header } from '../components/layout/Header';
 import { Hero } from '../components/home/Hero';
 import { isProfileComplete, useAuth } from '../context/AuthContext';
 import { getActiveClinicalCategories, getActiveUniversities, type ClinicalCategoryOption } from '../lib/referenceData';
+import { useT } from '../lib/i18n';
 import { ImageWithFallback } from '../components/common/ImageWithFallback';
 import { getCategoryImage, getCategoryPlaceholder, getUniversityImage, getUniversityPlaceholder } from '../lib/cardPlaceholders';
 
@@ -55,6 +56,7 @@ const defaultCategories: ClinicalCategoryOption[] = [
 ];
 
 export const Home = () => {
+  const { t, dir, lang } = useT();
   const { user, profile, loading } = useAuth();
   const [universities, setUniversities] = useState<UniversityCard[]>(defaultUniversities);
   const [categories, setCategories] = useState<ClinicalCategoryOption[]>(defaultCategories);
@@ -73,30 +75,30 @@ export const Home = () => {
     return () => { active = false; };
   }, []);
 
-  const accountName = profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'مستخدم';
+  const accountName = profile?.full_name || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || t('مستخدم');
   const accountAction = !user ? (
     <>
       <Link className="primary-button hero-primary" to="/register?role=PATIENT&start=1">
-        ابدأ كمريض <UserRound size={18} />
+        {t('ابدأ كمريض')} <UserRound size={18} />
       </Link>
       <Link className="secondary-button" to="/register?role=STUDENT&start=1">
-        ابدأ كطالب <GraduationCap size={18} />
+        {t('ابدأ كطالب')} <GraduationCap size={18} />
       </Link>
-      <Link className="text-link" to="/login">تسجيل الدخول</Link>
+      <Link className="text-link" to="/login">{t('تسجيل الدخول')}</Link>
     </>
   ) : loading ? (
-    <span className="hero-note">جاري التحقق من الحساب...</span>
+    <span className="hero-note">{t('جاري التحقق من الحساب...')}</span>
   ) : (
     <>
-      <span className="hero-note">أهلاً، {accountName}</span>
+      <span className="hero-note">{t('أهلاً،')} {accountName}</span>
       <Link className="primary-button hero-primary" to={isProfileComplete(profile) ? '/dashboard' : '/profile'}>
-        {isProfileComplete(profile) ? 'الذهاب إلى حسابي' : 'تعديل الملف الشخصي'} <ArrowLeft size={18} />
+        {isProfileComplete(profile) ? t('الذهاب إلى حسابي') : t('تعديل الملف الشخصي')} <ArrowLeft size={18} />
       </Link>
     </>
   );
 
   return (
-    <div className="customer-shell" dir="rtl">
+    <div className="customer-shell" dir={dir}>
       <Header />
       <main>
         <Hero accountAction={accountAction} />
@@ -105,39 +107,39 @@ export const Home = () => {
           <div>
             <ShieldCheck size={22} />
             <span>
-              <b>خصوصيتك أولاً</b>
-              <small>بيانات التواصل للإدارة فقط</small>
+              <b>{t('خصوصيتك أولاً')}</b>
+              <small>{t('بيانات التواصل للإدارة فقط')}</small>
             </span>
           </div>
           <div>
             <University size={22} />
             <span>
-              <b>جامعات قريبة</b>
-              <small>اختيار يصل إلى 4 جامعات</small>
+              <b>{t('جامعات قريبة')}</b>
+              <small>{t('اختيار يصل إلى 4 جامعات')}</small>
             </span>
           </div>
           <div>
             <Sparkles size={22} />
             <span>
-              <b>مطابقة أذكى</b>
-              <small>عوامل سريرية ومكانية واضحة</small>
+              <b>{t('مطابقة أذكى')}</b>
+              <small>{t('عوامل سريرية ومكانية واضحة')}</small>
             </span>
           </div>
         </section>
 
         <section className="section how-section" id="how-it-works">
           <div className="section-heading">
-            <span>بخطوات واضحة</span>
-            <h2>كيف تعمل المنصة؟</h2>
-            <p>من تسجيل الحساب إلى الموعد، كل مرحلة مصممة لتكون بسيطة وآمنة.</p>
+            <span>{t('بخطوات واضحة')}</span>
+            <h2>{t('كيف تعمل المنصة؟')}</h2>
+            <p>{t('من تسجيل الحساب إلى الموعد، كل مرحلة مصممة لتكون بسيطة وآمنة.')}</p>
           </div>
           <div className="steps-grid">
             {steps.map(({ number, icon: Icon, title, body }) => (
               <article className="step-card" key={number}>
                 <div className="step-icon"><Icon size={23} /></div>
                 <span className="step-number">{number}</span>
-                <h3>{title}</h3>
-                <p>{body}</p>
+                <h3>{t(title)}</h3>
+                <p>{t(body)}</p>
               </article>
             ))}
           </div>
@@ -145,25 +147,25 @@ export const Home = () => {
 
         <section className="section audience-section" id="patients">
           <div className="section-heading">
-            <span>اختر طريقك</span>
-            <h2>منصة واحدة، احتياجان واضحان</h2>
-            <p>لا توجد حسابات وسيطة للعميل. اختر الدور الذي يناسبك وابدأ.</p>
+            <span>{t('اختر طريقك')}</span>
+            <h2>{t('منصة واحدة، احتياجان واضحان')}</h2>
+            <p>{t('لا توجد حسابات وسيطة للعميل. اختر الدور الذي يناسبك وابدأ.')}</p>
           </div>
           <div className="audience-grid">
             <article className="audience-card audience-patient">
-              <div className="audience-mark">م</div>
+              <div className="audience-mark">{t('م')}</div>
               <div>
-                <h3>أنا مريض</h3>
-                <p>أرغب في عرض حالة أسنان والعثور على طالب مناسب في جامعة قريبة.</p>
-                <Link to="/register?role=PATIENT">ابدأ كمريض <ArrowLeft size={17} /></Link>
+                <h3>{t('أنا مريض')}</h3>
+                <p>{t('أرغب في عرض حالة أسنان والعثور على طالب مناسب في جامعة قريبة.')}</p>
+                <Link to="/register?role=PATIENT">{t('ابدأ كمريض')} <ArrowLeft size={17} /></Link>
               </div>
             </article>
             <article className="audience-card audience-student">
-              <div className="audience-mark">ط</div>
+              <div className="audience-mark">{t('ط')}</div>
               <div>
-                <h3>أنا طالب طب أسنان</h3>
-                <p>أبحث عن حالات سريرية مناسبة لمتطلبات التدريب في جامعتي.</p>
-                <Link to="/register?role=STUDENT">ابدأ كطالب <ArrowLeft size={17} /></Link>
+                <h3>{t('أنا طالب طب أسنان')}</h3>
+                <p>{t('أبحث عن حالات سريرية مناسبة لمتطلبات التدريب في جامعتي.')}</p>
+                <Link to="/register?role=STUDENT">{t('ابدأ كطالب')} <ArrowLeft size={17} /></Link>
               </div>
             </article>
           </div>
@@ -173,22 +175,22 @@ export const Home = () => {
           <div className="privacy-panel">
             <div className="privacy-icon"><LockKeyhole size={26} /></div>
             <div>
-              <span>أمان وخصوصية</span>
-              <h2>بياناتك لا تُعرض للطرف الآخر</h2>
-              <p>نخفي الاسم ورقم الهاتف وواتساب والبريد عن العملاء. الإدارة وحدها تنسّق التواصل عند وجود تطابق مناسب.</p>
+              <span>{t('أمان وخصوصية')}</span>
+              <h2>{t('بياناتك لا تُعرض للطرف الآخر')}</h2>
+              <p>{t('نخفي الاسم ورقم الهاتف وواتساب والبريد عن العملاء. الإدارة وحدها تنسّق التواصل عند وجود تطابق مناسب.')}</p>
             </div>
-            <Link className="outline-button" to="/faq">اعرف المزيد <ChevronLeft size={17} /></Link>
+            <Link className="outline-button" to="/faq">{t('اعرف المزيد')} <ChevronLeft size={17} /></Link>
           </div>
         </section>
 
         <section className="section universities-section" id="universities">
           <div className="section-heading section-heading-row">
             <div>
-              <span>شركاؤنا القريبون</span>
-              <h2>جامعات طب الأسنان</h2>
-              <p>اختر الجامعات الأنسب لك أثناء إنشاء ملفك أو حالتك.</p>
+              <span>{t('شركاؤنا القريبون')}</span>
+              <h2>{t('جامعات طب الأسنان')}</h2>
+              <p>{t('اختر الجامعات الأنسب لك أثناء إنشاء ملفك أو حالتك.')}</p>
             </div>
-            <Link className="text-link" to="/login">عرض الجامعات <ArrowLeft size={17} /></Link>
+            <Link className="text-link" to="/login">{t('عرض الجامعات')} <ArrowLeft size={17} /></Link>
           </div>
 
           <div className="university-row">
@@ -198,14 +200,14 @@ export const Home = () => {
                   <ImageWithFallback
                     src={getUniversityImage(item)}
                     fallbackSrc={getUniversityPlaceholder(item)}
-                    alt={`شعار ${item.name_ar}`}
+                    alt={t(item.name_ar)}
                     className="card-media"
                   />
                 </div>
-                <b>{item.name_ar}</b>
-                <small>كلية طب الأسنان</small>
+                <b>{lang === 'en' && 'name_en' in item && item.name_en ? item.name_en : t(item.name_ar)}</b>
+                <small>{t('كلية طب الأسنان')}</small>
                 <div className="tile-location">
-                  <MapPin size={14} /> النجف / العراق
+                  <MapPin size={14} /> {t('النجف / العراق')}
                 </div>
               </div>
             ))}
@@ -214,9 +216,9 @@ export const Home = () => {
 
         <section className="section categories-section" id="categories">
           <div className="section-heading">
-            <span>مجالات التدريب</span>
-            <h2>التصنيفات السريرية</h2>
-            <p>تعرف على المجالات المتاحة قبل بدء التسجيل.</p>
+            <span>{t('مجالات التدريب')}</span>
+            <h2>{t('التصنيفات السريرية')}</h2>
+            <p>{t('تعرف على المجالات المتاحة قبل بدء التسجيل.')}</p>
           </div>
 
           <div className="category-row">
@@ -226,12 +228,12 @@ export const Home = () => {
                   <ImageWithFallback
                     src={getCategoryImage(item)}
                     fallbackSrc={getCategoryPlaceholder(item)}
-                    alt={item.name_ar}
+                    alt={t(item.name_ar)}
                     className="card-media"
                   />
                 </div>
-                <b>{item.name_ar}</b>
-                <small>تدريب سريري معتمد</small>
+                <b>{t(item.name_ar)}</b>
+                <small>{t('تدريب سريري معتمد')}</small>
               </div>
             ))}
           </div>
@@ -239,27 +241,27 @@ export const Home = () => {
 
         <section className="section faq-section" id="faq">
           <div className="section-heading">
-            <span>أسئلة شائعة</span>
-            <h2>قبل أن تبدأ</h2>
+            <span>{t('أسئلة شائعة')}</span>
+            <h2>{t('قبل أن تبدأ')}</h2>
           </div>
           <div className="faq-grid">
             <details open>
               <summary>
-                <CircleHelp size={18} /> هل يمكنني اختيار أكثر من جامعة؟ <ChevronLeft size={18} />
+                <CircleHelp size={18} /> {t('هل يمكنني اختيار أكثر من جامعة؟')} <ChevronLeft size={18} />
               </summary>
-              <p>نعم، يمكنك اختيار جامعة واحدة إلى أربع جامعات مناسبة لك، ويمكن تعديلها عند إضافة الحالة.</p>
+              <p>{t('نعم، يمكنك اختيار جامعة واحدة إلى أربع جامعات مناسبة لك، ويمكن تعديلها عند إضافة الحالة.')}</p>
             </details>
             <details>
               <summary>
-                <CircleHelp size={18} /> هل تظهر بياناتي للطلاب؟ <ChevronLeft size={18} />
+                <CircleHelp size={18} /> {t('هل تظهر بياناتي للطلاب؟')} <ChevronLeft size={18} />
               </summary>
-              <p>لا. تظهر حالة مجهّلة فقط، وتبقى بيانات التواصل لدى إدارة المنصة.</p>
+              <p>{t('لا. تظهر حالة مجهّلة فقط، وتبقى بيانات التواصل لدى إدارة المنصة.')}</p>
             </details>
             <details>
               <summary>
-                <CircleHelp size={17} /> هل التسجيل مجاني؟ <ChevronLeft size={17} />
+                <CircleHelp size={17} /> {t('هل التسجيل مجاني؟')} <ChevronLeft size={17} />
               </summary>
-              <p>إنشاء الحساب وإرسال الحالة متاحان من خلال المنصة، وأي تنسيق يتم عبر الإدارة.</p>
+              <p>{t('إنشاء الحساب وإرسال الحالة متاحان من خلال المنصة، وأي تنسيق يتم عبر الإدارة.')}</p>
             </details>
           </div>
         </section>
@@ -269,17 +271,17 @@ export const Home = () => {
         <div>
           <div className="brand-lockup">
             <div className="brand-tooth">✦</div>
-            <span>أسنان الأساس<small>منصة تربط المرضى بطلاب طب الأسنان</small></span>
+            <span>{t('أسنان الأساس')}<small>{t('منصة تربط المرضى بطلاب طب الأسنان')}</small></span>
           </div>
-          <p>رعاية أسنان أفضل بالتعاون مع جامعات العراق.</p>
+          <p>{t('رعاية أسنان أفضل بالتعاون مع جامعات العراق.')}</p>
         </div>
         <div className="footer-links">
-          <Link to="/how-it-works">كيف تعمل المنصة</Link>
-          <Link to="/patients">للمرضى</Link>
-          <Link to="/students">للطلاب</Link>
-          <Link to="/faq">الأسئلة الشائعة</Link>
+          <Link to="/how-it-works">{t('كيف تعمل المنصة')}</Link>
+          <Link to="/patients">{t('للمرضى')}</Link>
+          <Link to="/students">{t('للطلاب')}</Link>
+          <Link to="/faq">{t('الأسئلة الشائعة')}</Link>
         </div>
-        <small>© {currentYear} جميع الحقوق محفوظة لشركة الأساس للحلول البرمجية</small>
+        <small>© {currentYear} {t('جميع الحقوق محفوظة لشركة الأساس للحلول البرمجية')}</small>
         <small dir="ltr">Version 1.5.0</small>
       </footer>
     </div>
