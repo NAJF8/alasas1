@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { callBackend } from '../../lib/firebaseData';
-import { firebaseData as supabase } from '../../lib/firebaseData';
+import { firebaseData } from '../../lib/firebaseData';
 import { getActiveCategories, getActiveProvinces, getActiveUniversities } from '../../lib/referenceData';
 
 const STEPS = ['المعلومات الأساسية', 'وصف المشكلة', 'الأعراض', 'الصور', 'التوفر والجامعات', 'مراجعة وإرسال'];
@@ -69,7 +69,7 @@ export const PatientCaseWizard = () => {
       setAreas([]);
       return;
     }
-    void supabase
+    void firebaseData
       .from('areas')
       .select('id, name_ar, province_id, is_active')
       .limit(500)
@@ -84,7 +84,7 @@ export const PatientCaseWizard = () => {
 
   useEffect(() => {
     if (!user) return;
-    void supabase
+    void firebaseData
       .from('patient_preferred_universities')
       .select('university_id')
       .eq('patient_id', user.id)
@@ -167,7 +167,7 @@ export const PatientCaseWizard = () => {
 
     let uploadedCount = 0;
     for (const file of formData.images) {
-      const uploadRes = await supabase.storage.from('medical-images').upload(`cases/${createdCase.id}/${file.name}`, file);
+      const uploadRes = await firebaseData.storage.from('medical-images').upload(`cases/${createdCase.id}/${file.name}`, file);
       if (uploadRes.error) {
         setError(`تم حفظ الحالة ${createdCase.case_number} ولكن تعذر رفع المرفق (${file.name}): ${uploadRes.error.message}`);
         submissionInFlight.current = false;
@@ -228,7 +228,7 @@ export const PatientCaseWizard = () => {
                 <span className="mb-2 block text-sm font-bold text-slate-700">المنطقة</span>
                 <select required value={formData.area_id} onChange={(event) => set('area_id', event.target.value)} className="w-full rounded-xl border border-slate-200 p-3">
                   <option value="">اختر المنطقة</option>
-                  {areas.map((item) => <option key={item.id} value={item.id}>{item.name_ar}</option>)}
+                  {(formData.province_id ? areas : []).map((item) => <option key={item.id} value={item.id}>{item.name_ar}</option>)}
                 </select>
               </label>
               <label>

@@ -1,4 +1,4 @@
-import { firebaseData as supabase } from './firebaseData';
+import { firebaseData } from './firebaseData';
 
 export type UniversityOption = {
   id: string;
@@ -28,7 +28,7 @@ let categoriesPromise: Promise<ClinicalCategoryOption[]> | null = null;
 export const getActiveUniversities = () => {
   if (!universitiesPromise) {
     universitiesPromise = Promise.resolve(
-      supabase
+      firebaseData
         .from('universities')
         .select('id,name_ar,name_en,province_id,image_url,is_active,has_dental_college')
         .limit(200)
@@ -49,7 +49,7 @@ export const getActiveUniversities = () => {
 export const getActiveProvinces = () => {
   if (!provincesPromise) {
     provincesPromise = Promise.resolve(
-      supabase
+      firebaseData
         .from('provinces')
         .select('id,name_ar,is_active')
         .limit(200)
@@ -70,7 +70,7 @@ export const getActiveProvinces = () => {
 export const getActiveClinicalCategories = () => {
   if (!categoriesPromise) {
     categoriesPromise = Promise.resolve(
-      supabase
+      firebaseData
         .from('clinical_categories')
         .select('id,name_ar,code,name_en,image_url,is_active')
         .limit(200)

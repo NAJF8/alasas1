@@ -5,7 +5,7 @@ import { Header } from '../../components/layout/Header';
 import { CustomerFooter } from '../../components/layout/PreferencesBar';
 import { useAuth } from '../../context/AuthContext';
 import { callBackend } from '../../lib/firebaseData';
-import { firebaseData as supabase } from '../../lib/firebaseData';
+import { firebaseData } from '../../lib/firebaseData';
 import { getActiveProvinces, getActiveUniversities } from '../../lib/referenceData';
 
 type Option = { id: string; name_ar: string };
@@ -30,10 +30,10 @@ export const NewRequest = () => {
   useEffect(() => {
     if (!user) return;
     void Promise.all([
-      supabase.from('clinical_categories').select('id, name_ar, is_active').limit(200),
+      firebaseData.from('clinical_categories').select('id, name_ar, is_active').limit(200),
       getActiveProvinces(),
       getActiveUniversities(),
-      supabase.from('student_preferred_universities').select('university_id').eq('student_id', user.id),
+      firebaseData.from('student_preferred_universities').select('university_id').eq('student_id', user.id),
     ]).then(([categoryResult, provinceResult, universityResult, selectedResult]) => {
       const firstError = categoryResult.error || selectedResult.error;
       if (firstError) setError(`تعذر تحميل خيارات الطلب: ${firstError.message}`);
@@ -82,9 +82,9 @@ export const NewRequest = () => {
       };
     }
     if (requestError || !request) { setError(requestError?.message || 'تعذر إرسال الطلب.'); setSaving(false); submitLock.current = false; return; }
-    const { data: savedRequest, error: readbackError } = await supabase.from('student_requests').select('id, request_number, student_id, status, requested_case_id').eq('id', request.id).eq('student_id', user.id).single();
+    const { data: savedRequest, error: readbackError } = await firebaseData.from('student_requests').select('id, request_number, student_id, status, requested_case_id').eq('id', request.id).eq('student_id', user.id).single();
     if (readbackError || !savedRequest) { setError(`تم الحفظ لكن تعذر التحقق من الطلب: ${readbackError?.message || 'لم تُعد قاعدة البيانات السجل.'}`); setSaving(false); submitLock.current = false; return; }
-    const { data: savedUniversities, error: universityReadbackError } = await supabase.from('student_request_preferred_universities').select('university_id').eq('request_id', request.id);
+    const { data: savedUniversities, error: universityReadbackError } = await firebaseData.from('student_request_preferred_universities').select('university_id').eq('request_id', request.id);
     if (universityReadbackError || (savedUniversities || []).length !== universityIds.length) { setError(`تم إنشاء الطلب لكن تعذر التحقق من الجامعات المحفوظة: ${universityReadbackError?.message || 'عدد الجامعات لا يطابق الاختيار.'}`); setSaving(false); submitLock.current = false; return; }
     setSuccess(`تم إرسال الطلب ${savedRequest.request_number} للمراجعة بنجاح.`);
     setSaving(false);

@@ -5,7 +5,7 @@ import { Header } from '../../components/layout/Header';
 import { ImageWithFallback } from '../../components/common/ImageWithFallback';
 import { CustomerFooter } from '../../components/layout/PreferencesBar';
 import { useAuth } from '../../context/AuthContext';
-import { callBackend, firebaseData as supabase } from '../../lib/firebaseData';
+import { callBackend, firebaseData } from '../../lib/firebaseData';
 import { getActiveCategories, getActiveProvinces } from '../../lib/referenceData';
 
 type CaseRow = {
@@ -87,8 +87,8 @@ export const SearchCases = () => {
     setBusy(true);
     setError(null);
     const [casesRes, reqRes, matchRes, provRows, catRows] = await Promise.all([
-      supabase.rpc('search_anonymized_patient_cases', { p_limit: 50, p_offset: 0 }),
-      supabase.from('student_requests').select('*').eq('student_id', user.id),
+      firebaseData.rpc('search_anonymized_patient_cases', { p_limit: 50, p_offset: 0 }),
+      firebaseData.from('student_requests').select('*').eq('student_id', user.id),
       callBackend<{ data: MatchRow[] }>('/api/my-matches').catch(() => ({ data: [] as MatchRow[] })),
       getActiveProvinces(),
       getActiveCategories(),
@@ -157,7 +157,7 @@ export const SearchCases = () => {
     setActionBusy(`img-${caseId}`);
     setError(null);
     try {
-      const res = await supabase.storage.from('medical-images').listByCase(caseId);
+      const res = await firebaseData.storage.from('medical-images').listByCase(caseId);
       if (res.error) throw new Error(res.error.message);
       setCaseImagesModal({ caseNumber, images: res.data || [] });
     } catch (err) {

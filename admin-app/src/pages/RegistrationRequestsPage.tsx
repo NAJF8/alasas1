@@ -1,7 +1,7 @@
 import { AlertCircle, CheckCircle2, Clock3, ExternalLink, Loader2, RefreshCw, ShieldCheck, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { AdminLayout } from '../components/layout/AdminLayout';
-import { firebaseData as supabase } from '../lib/firebaseData';
+import { firebaseData } from '../lib/firebaseData';
 
 type RegistrationRequest = {
   id: string; full_name: string; phone_e164: string; role: string; gender: string;
@@ -22,7 +22,7 @@ export const RegistrationRequestsPage = () => {
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
-    const { data, error: invokeError } = await supabase.functions.invoke('registration-admin', { body: { action: 'list' } });
+    const { data, error: invokeError } = await firebaseData.functions.invoke('registration-admin', { body: { action: 'list' } });
     if (invokeError || !Array.isArray(data?.requests)) setError(invokeError?.message || 'Backend طلبات التسجيل غير متاح أو لم يُفعّل بعد.');
     else setRequests(data.requests as RegistrationRequest[]);
     setLoading(false);
@@ -34,7 +34,7 @@ export const RegistrationRequestsPage = () => {
     const reason = action === 'reject' ? window.prompt('سبب الرفض (اختياري):', '') : null;
     if (action === 'reject' && reason === null) return;
     setBusyId(request.id); setError(null); setMessage(null);
-    const { data, error: invokeError } = await supabase.functions.invoke('registration-admin', { body: { action, request_id: request.id, reason: reason || undefined } });
+    const { data, error: invokeError } = await firebaseData.functions.invoke('registration-admin', { body: { action, request_id: request.id, reason: reason || undefined } });
     if (invokeError || data?.status !== (action === 'approve' ? 'VERIFIED' : 'REJECTED')) setError(invokeError?.message || 'لم يؤكد Backend القرار عبر Readback.');
     else { setMessage(action === 'approve' ? 'تمت الموافقة والتحقق من قراءة القرار.' : 'تم رفض الطلب والتحقق من قراءة القرار.'); await load(); }
     setBusyId(null);

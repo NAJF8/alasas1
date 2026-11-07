@@ -3,7 +3,7 @@ import { scrypt as nodeScrypt } from 'node:crypto';
 import { promisify } from 'node:util';
 
 const scrypt = promisify(nodeScrypt);
-type Env = { FIREBASE_PROJECT_ID: string; FIREBASE_SERVICE_ACCOUNT_JSON?: string; STORAGE_TOKEN_SECRET?: string; ALLOWED_ORIGINS?: string; RELEASE_SHA?: string; MEDICAL_IMAGES?: R2Bucket; GITHUB_ASSET_REPOSITORY?: string; GITHUB_APP_ID?: string; GITHUB_INSTALLATION_ID?: string; GITHUB_PRIVATE_KEY?: string; PUBLIC_MEDIA_MAX_BYTES?: string };
+type Env = { FIREBASE_PROJECT_ID: string; FIREBASE_SERVICE_ACCOUNT_JSON?: string; STORAGE_TOKEN_SECRET?: string; ALLOWED_ORIGINS?: string; RELEASE_SHA?: string; MEDICAL_IMAGES?: R2Bucket; GITHUB_ASSET_REPOSITORY?: string; GITHUB_APP_ID?: string; GITHUB_INSTALLATION_ID?: string; GITHUB_PRIVATE_KEY?: string; PUBLIC_MEDIA_MAX_BYTES?: string; RATE_LIMIT?: KVNamespace };
 type Claims = { sub: string; aud: string; iss: string; exp: number; email?: string };
 type Doc = { name: string; fields?: Record<string, any>; updateTime?: string };
 type Write = { update?: { name: string; fields: Record<string, any> }; updateMask?: { fieldPaths: string[] }; delete?: string; currentDocument?: { exists?: boolean; updateTime?: string } };
@@ -23,18 +23,28 @@ const encodePath = (path: string) => path.split('/').map(encodeURIComponent).joi
 const cors = (request: Request, env: Env) => { const origin = request.headers.get('Origin') || ''; const allowed = (env.ALLOWED_ORIGINS || '').split(',').map((x) => x.trim()); return { 'access-control-allow-origin': allowed.includes(origin) ? origin : 'null', 'access-control-allow-headers': 'Authorization,Content-Type,Idempotency-Key,x-file-size,x-file-name', 'access-control-allow-methods': 'GET,POST,DELETE,OPTIONS', vary: 'Origin' }; };
 const tokenFrom = (request: Request) => { const value = request.headers.get('Authorization') || ''; return value.startsWith('Bearer ') ? value.slice(7) : null; };
 
+// Persistent fixed-window rate limiter backed by Workers KV (binding RATE_LIMIT).
+// KV is eventually consistent and read-modify-write is not atomic, so the limit
+// is approximate under heavy concurrency; it is shared across isolates and
+// survives restarts, unlike a per-isolate Map. Falls back to a per-isolate Map
+// only when the binding is absent (local dev / unit tests).
 const rateBuckets = new Map<string, { count: number; resetAt: number }>();
-const checkRateLimit = (request: Request, bucket: string, maxRequests = 40, windowMs = 60_000) => {
+const checkRateLimit = async (request: Request, env: Env, bucket: string, maxRequests = 40, windowMs = 60_000) => {
   const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'local';
-  const key = `${bucket}:${ip}`;
   const now = Date.now();
-  const entry = rateBuckets.get(key);
-  if (!entry || entry.resetAt <= now) {
-    rateBuckets.set(key, { count: 1, resetAt: now + windowMs });
+  const windowStart = Math.floor(now / windowMs);
+  const key = `rl:${bucket}:${ip}:${windowStart}`;
+  if (env.RATE_LIMIT) {
+    let count = 0;
+    try { count = Number(await env.RATE_LIMIT.get(key)) || 0; } catch { return; } // KV outage must not take auth down
+    if (count >= maxRequests) error('RATE_LIMITED', 429);
+    try { await env.RATE_LIMIT.put(key, String(count + 1), { expirationTtl: Math.max(60, Math.ceil(windowMs / 1000) * 2) }); } catch { /* best effort */ }
     return;
   }
-  entry.count += 1;
-  if (entry.count > maxRequests) error('RATE_LIMITED', 429);
+  const entry = rateBuckets.get(key);
+  if (!entry) { rateBuckets.set(key, { count: 1, resetAt: now + windowMs }); }
+  else { entry.count += 1; if (entry.count > maxRequests) error('RATE_LIMITED', 429); }
+  if (rateBuckets.size > 5000) for (const [k, v] of rateBuckets) if (v.resetAt <= now) rateBuckets.delete(k);
 };
 
 const verifyIdToken = async (request: Request, env: Env): Promise<Claims> => {
@@ -269,7 +279,7 @@ const updatePublicMediaReference = async (env: Env, actor: Claims, input: Record
 };
 
 const registrationRequest = async (request: Request, env: Env) => {
-  checkRateLimit(request, 'registration', 20, 60_000);
+  await checkRateLimit(request, env, 'registration', 20, 60_000);
   const input = await parseBody(request);
   const full_name = String(input.full_name || '').trim();
   const phone = normalizePhone(String(input.phone || ''));
@@ -305,7 +315,7 @@ const registrationRequest = async (request: Request, env: Env) => {
 };
 
 const phoneLogin = async (request: Request, env: Env) => {
-  checkRateLimit(request, 'login', 30, 60_000);
+  await checkRateLimit(request, env, 'login', 30, 60_000);
   const input = await parseBody(request);
   const phone = normalizePhone(String(input.phone || ''));
   const password = String(input.password || '');
@@ -976,7 +986,7 @@ const storage = async (request: Request, env: Env, actor: Claims | null, url: UR
   const operation = url.pathname.split('/').pop();
   if (operation === 'upload' && request.method === 'POST') {
     if (!actor) error('AUTH_REQUIRED', 401);
-    checkRateLimit(request, 'storage_upload', 25, 60_000);
+    await checkRateLimit(request, env, 'storage_upload', 25, 60_000);
     const caseId = (url.searchParams.get('case_id') || '').trim();
     if (!caseId || caseId.includes('..') || caseId.includes('/') || caseId.includes('\\')) error('INVALID_PATH', 400);
     const current = fromDoc(await getDoc(env, 'patient_cases', caseId)) as Record<string, any> | null;

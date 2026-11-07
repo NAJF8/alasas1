@@ -5,7 +5,6 @@ import { AdminLayout } from '../components/layout/AdminLayout';
 import { displayValue } from '../lib/displayValue';
 import { firebaseData } from '../lib/firebaseData';
 import { UniversityPage as LinkedUniversityPage } from './UniversityPage';
-const supabase = firebaseData;
 
 type Column = { key: string; label: string };
 type Row = Record<string, unknown> & { id?: string };
@@ -26,12 +25,12 @@ const configs: Record<string, PageConfig> = {
 type Province = Row & { name_ar: string; name_en: string; is_active: boolean };
 const ProvincePage = () => {
   const [rows, setRows] = useState<Province[]>([]); const [query, setQuery] = useState(''); const [error, setError] = useState<string | null>(null); const [message, setMessage] = useState<string | null>(null); const [editing, setEditing] = useState<string | null>(null); const [modalOpen, setModalOpen] = useState(false); const [form, setForm] = useState({ name_ar: '', name_en: '', is_active: true }); const [saving, setSaving] = useState(false); const [retry, setRetry] = useState(0);
-  const load = useCallback(async () => { const result = await supabase.from('provinces').select('id,name_ar,name_en,is_active').order('is_active', { ascending: false }).order('name_ar'); if (result.error) setError(result.error.message); else setRows((result.data || []) as Province[]); }, []);
+  const load = useCallback(async () => { const result = await firebaseData.from('provinces').select('id,name_ar,name_en,is_active').order('is_active', { ascending: false }).order('name_ar'); if (result.error) setError(result.error.message); else setRows((result.data || []) as Province[]); }, []);
   useEffect(() => { void load(); }, [load, retry]);
   const filtered = useMemo(() => rows.filter((row) => `${row.name_ar} ${row.name_en}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())), [rows, query]);
   const close = () => { setEditing(null); setModalOpen(false); setForm({ name_ar: '', name_en: '', is_active: true }); };
-  const save = async (event: FormEvent) => { event.preventDefault(); setSaving(true); setError(null); const payload = { name_ar: form.name_ar.trim(), name_en: form.name_en.trim() || form.name_ar.trim(), is_active: form.is_active }; const result = editing ? await supabase.from('provinces').update(payload).eq('id', editing).select('id,name_ar,name_en,is_active').single() : await supabase.from('provinces').insert(payload).select('id,name_ar,name_en,is_active').single(); if (result.error || !result.data) setError(result.error?.message || 'لم يؤكد Firebase الحفظ.'); else { const readback = await supabase.from('provinces').select('id,name_ar,name_en,is_active').eq('id', result.data.id).single(); if (readback.error || !readback.data) setError(readback.error?.message || 'تمت الكتابة دون إعادة قراءة Firestore.'); else { setRows((current) => editing ? current.map((row) => row.id === editing ? readback.data as Province : row) : [...current, readback.data as Province]); setMessage('تم الحفظ والتحقق من القراءة.'); close(); } } setSaving(false); };
-  const toggle = async (row: Province) => { setError(null); const result = await supabase.from('provinces').update({ is_active: !row.is_active }).eq('id', row.id).select('id,name_ar,name_en,is_active').single(); if (result.error || !result.data) setError(result.error?.message || 'تعذر تغيير الظهور.'); else { const readback = await supabase.from('provinces').select('id,name_ar,name_en,is_active').eq('id', row.id).single(); if (readback.error || !readback.data) setError(readback.error?.message || 'إعادة قراءة Firestore غير متاح.'); else { setRows((current) => current.map((item) => item.id === row.id ? readback.data as Province : item)); setMessage(readback.data.is_active ? 'تم إظهار المحافظة.' : 'تم إخفاء المحافظة؛ لم تُحذف البيانات المرتبطة.'); } } };
+  const save = async (event: FormEvent) => { event.preventDefault(); setSaving(true); setError(null); const payload = { name_ar: form.name_ar.trim(), name_en: form.name_en.trim() || form.name_ar.trim(), is_active: form.is_active }; const result = editing ? await firebaseData.from('provinces').update(payload).eq('id', editing).select('id,name_ar,name_en,is_active').single() : await firebaseData.from('provinces').insert(payload).select('id,name_ar,name_en,is_active').single(); if (result.error || !result.data) setError(result.error?.message || 'لم يؤكد Firebase الحفظ.'); else { const readback = await firebaseData.from('provinces').select('id,name_ar,name_en,is_active').eq('id', result.data.id).single(); if (readback.error || !readback.data) setError(readback.error?.message || 'تمت الكتابة دون إعادة قراءة Firestore.'); else { setRows((current) => editing ? current.map((row) => row.id === editing ? readback.data as Province : row) : [...current, readback.data as Province]); setMessage('تم الحفظ والتحقق من القراءة.'); close(); } } setSaving(false); };
+  const toggle = async (row: Province) => { setError(null); const result = await firebaseData.from('provinces').update({ is_active: !row.is_active }).eq('id', row.id).select('id,name_ar,name_en,is_active').single(); if (result.error || !result.data) setError(result.error?.message || 'تعذر تغيير الظهور.'); else { const readback = await firebaseData.from('provinces').select('id,name_ar,name_en,is_active').eq('id', row.id).single(); if (readback.error || !readback.data) setError(readback.error?.message || 'إعادة قراءة Firestore غير متاح.'); else { setRows((current) => current.map((item) => item.id === row.id ? readback.data as Province : item)); setMessage(readback.data.is_active ? 'تم إظهار المحافظة.' : 'تم إخفاء المحافظة؛ لم تُحذف البيانات المرتبطة.'); } } };
   return <AdminLayout><div className="management-heading"><div><span className="dashboard-eyebrow">إدارة البيانات المرجعية</span><h1>إدارة المحافظات</h1><p>تحكم بالظهور واستقبال الخيارات الجديدة دون حذف المحافظات المرتبطة تاريخياً.</p></div><button className="dashboard-action" onClick={() => { close(); setModalOpen(true); }}> <Plus size={16} /> محافظة جديدة</button></div>{message && <div className="settings-inline-success"><Check size={15} /> {message}</div>}<section className="admin-panel management-panel"><div className="management-toolbar"><div className="table-search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ابحث باسم المحافظة..." /></div><button onClick={() => setRetry((value) => value + 1)}><RefreshCw size={15} /> تحديث</button></div>{error && <div className="admin-error"><span>{error}</span></div>}<div className="table-scroll"><table><thead><tr><th>المحافظة</th><th>الاسم الإنجليزي</th><th>الظهور واستقبال الطلبات</th><th>الإجراءات</th></tr></thead><tbody>{filtered.map((row) => <tr key={String(row.id)}><td>{row.name_ar}</td><td>{row.name_en}</td><td><span className={`status ${row.is_active ? 'green' : 'red'}`}>{row.is_active ? 'فعالة' : 'مخفية'}</span></td><td className="row-actions"><button className="row-action" onClick={() => { setEditing(String(row.id)); setForm({ name_ar: row.name_ar, name_en: row.name_en, is_active: row.is_active }); setModalOpen(true); }}>تعديل</button><button className="row-action" onClick={() => void toggle(row)}>{row.is_active ? 'إيقاف الطلبات' : 'تفعيل الطلبات'}</button></td></tr>)}</tbody></table></div></section>{modalOpen && <div className="modal-backdrop"><form className="admin-modal" onSubmit={(event) => void save(event)}><div className="panel-heading"><h2>{editing ? 'تعديل محافظة' : 'إضافة محافظة'}</h2><button type="button" onClick={close}><X size={18} /></button></div><label>اسم المحافظة بالعربية<input required value={form.name_ar} onChange={(event) => setForm({ ...form, name_ar: event.target.value })} /></label><label>الاسم بالإنجليزية<input value={form.name_en} onChange={(event) => setForm({ ...form, name_en: event.target.value })} /></label><label className="checkbox-row"><input type="checkbox" checked={form.is_active} onChange={(event) => setForm({ ...form, is_active: event.target.checked })} /> ظاهرة وتستقبل الخيارات الجديدة</label><div className="modal-actions"><button type="button" onClick={close}>إلغاء</button><button className="dashboard-action" disabled={saving}>{saving ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />} حفظ</button></div></form></div>}</AdminLayout>;
 };
 
@@ -56,7 +55,7 @@ const GenericManagementPage = ({ path }: { path: string }) => {
     setLoading(true);
     setError(null);
     const result = await (() => {
-      let request = supabase.from(config.table).select('*').limit(150);
+      let request = firebaseData.from(config.table).select('*').limit(150);
       if (config.table === 'profiles') {
         if (config.filter === 'PATIENT' || config.filter === 'STUDENT') request = request.eq('role', config.filter);
         if (config.filter === 'ADMIN_ROLES') request = request.in('role', ['ADMIN', 'SUPER_ADMIN', 'STAFF']);
@@ -103,7 +102,7 @@ const GenericManagementPage = ({ path }: { path: string }) => {
     setActionBusy(key);
     setError(null);
     setMessage(null);
-    const result = await supabase.functions.invoke(endpoint, { body });
+    const result = await firebaseData.functions.invoke(endpoint, { body });
     const returnedStatus = result.data?.status || result.data?.data?.status;
     if (result.error || (expectedStatus && returnedStatus && returnedStatus !== expectedStatus)) {
       setError(result.error?.message || `لم يؤكد Worker العملية (${expectedStatus || ''}).`);
@@ -159,7 +158,7 @@ const GenericManagementPage = ({ path }: { path: string }) => {
     setDetailRow(row);
     setDetailImages([]);
     if (path === '/cases' && row.id) {
-      const imgRes = await supabase.storage.from('medical-images').listByCase(String(row.id));
+      const imgRes = await firebaseData.storage.from('medical-images').listByCase(String(row.id));
       if (!imgRes.error) setDetailImages(imgRes.data || []);
     }
   };
@@ -167,7 +166,7 @@ const GenericManagementPage = ({ path }: { path: string }) => {
   const openMatch = async (row: Row) => {
     setActionBusy(`match-load-${String(row.id)}`);
     setError(null);
-    const result = await supabase.from('student_requests').select('id,request_number,student_id,status,requested_case_id').eq('status', 'VERIFIED').limit(100);
+    const result = await firebaseData.from('student_requests').select('id,request_number,student_id,status,requested_case_id').eq('status', 'VERIFIED').limit(100);
     if (result.error) setError(result.error.message);
     else {
       setMatchCase(row);

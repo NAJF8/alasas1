@@ -48,6 +48,18 @@ jobs:
           npm test
           npm run typecheck
 
+      - name: Setup Java (Firestore emulator)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Run Firestore Security Rules Tests (emulator)
+        working-directory: tools/rules-tests
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+
       - name: Run Production Seed Importer Regression Tests
         run: node --test tools/migration/import-canonical-production-seed.test.mjs
 

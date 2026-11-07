@@ -5,7 +5,7 @@ import { Header } from '../../components/layout/Header';
 import { ImageWithFallback } from '../../components/common/ImageWithFallback';
 import { CustomerFooter } from '../../components/layout/PreferencesBar';
 import { useAuth } from '../../context/AuthContext';
-import { callBackend, firebaseData as supabase } from '../../lib/firebaseData';
+import { callBackend, firebaseData } from '../../lib/firebaseData';
 
 type CaseRow = {
   id: string;
@@ -36,6 +36,8 @@ const statusLabel: Record<string, string> = {
   HIDDEN: 'مؤرشفة',
 };
 
+const nowIso = () => new Date().toISOString();
+
 export const PatientDashboard = () => {
   const { user, loading } = useAuth();
   const [cases, setCases] = useState<CaseRow[]>([]);
@@ -52,8 +54,8 @@ export const PatientDashboard = () => {
     setBusy(true);
     setError(null);
     const [caseResult, notificationResult] = await Promise.all([
-      supabase.from('patient_cases').select('id, case_number, title, description, patient_age, status, rejection_reason, matched_student_id, created_at').eq('patient_id', user.id),
-      supabase.from('notifications').select('id, title, message, is_read, created_at').eq('user_id', user.id).limit(10),
+      firebaseData.from('patient_cases').select('id, case_number, title, description, patient_age, status, rejection_reason, matched_student_id, created_at').eq('patient_id', user.id),
+      firebaseData.from('notifications').select('id, title, message, is_read, created_at').eq('user_id', user.id).limit(10),
     ]);
     const firstError = caseResult.error || notificationResult.error;
     if (firstError) setError(firstError.message);
@@ -73,7 +75,7 @@ export const PatientDashboard = () => {
   }, [load]);
 
   const markRead = async (id: string) => {
-    const { error: updateError } = await supabase.from('notifications').update({ is_read: true, read_at: new Date().toISOString() }).eq('id', id).eq('user_id', user?.id || '');
+    const { error: updateError } = await firebaseData.from('notifications').update({ is_read: true, read_at: nowIso() }).eq('id', id).eq('user_id', user?.id || '');
     if (!updateError) setNotifications((current) => current.map((item) => (item.id === id ? { ...item, is_read: true } : item)));
   };
 
@@ -115,7 +117,7 @@ export const PatientDashboard = () => {
     setActionBusy(`img-${item.id}`);
     setError(null);
     try {
-      const res = await supabase.storage.from('medical-images').listByCase(item.id);
+      const res = await firebaseData.storage.from('medical-images').listByCase(item.id);
       if (res.error) throw new Error(res.error.message);
       setImagesModal({ caseId: item.id, caseNumber: item.case_number, images: res.data || [] });
     } catch (err) {
@@ -130,9 +132,9 @@ export const PatientDashboard = () => {
     setActionBusy(`upload-${imagesModal.caseId}`);
     setError(null);
     try {
-      const res = await supabase.storage.from('medical-images').upload(`cases/${imagesModal.caseId}/${file.name}`, file);
+      const res = await firebaseData.storage.from('medical-images').upload(`cases/${imagesModal.caseId}/${file.name}`, file);
       if (res.error) throw new Error(res.error.message);
-      const listRes = await supabase.storage.from('medical-images').listByCase(imagesModal.caseId);
+      const listRes = await firebaseData.storage.from('medical-images').listByCase(imagesModal.caseId);
       setImagesModal({ ...imagesModal, images: listRes.data || [] });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'تعذر رفع المرفق الطبي.');

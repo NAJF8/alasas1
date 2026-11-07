@@ -116,8 +116,9 @@ export const PreferencesControls = ({ compact = false }: { compact?: boolean }) 
   );
 };
 
+const currentYear = new Date().getFullYear();
+
 export const CustomerFooter = () => {
-  const currentYear = new Date().getFullYear();
   return (
     <footer className="customer-footer">
       <div>

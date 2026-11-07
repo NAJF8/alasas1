@@ -4,7 +4,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { Header } from '../components/layout/Header';
 import { CustomerFooter } from '../components/layout/PreferencesBar';
 import { useAuth } from '../context/AuthContext';
-import { callBackend, firebaseData as supabase } from '../lib/firebaseData';
+import { callBackend, firebaseData } from '../lib/firebaseData';
 import { getActiveProvinces, getActiveUniversities } from '../lib/referenceData';
 
 type Option = { id: string; name_ar: string; province_id?: string };
@@ -39,8 +39,10 @@ export const ProfilePage = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!profile) return;
+  // Sync local form state from the loaded profile (React "adjust state during render" pattern).
+  const [syncedProfile, setSyncedProfile] = useState<typeof profile>(null);
+  if (profile && profile !== syncedProfile) {
+    setSyncedProfile(profile);
     setForm({
       full_name: profile.full_name || '',
       whatsapp: profile.whatsapp || profile.phone || '',
@@ -51,10 +53,8 @@ export const ProfilePage = () => {
       university_id: profile.university_id || '',
       stage: profile.stage || '',
     });
-    if (profile.preferred_university_ids?.length) {
-      setPreferredUniversityIds(profile.preferred_university_ids);
-    }
-  }, [profile]);
+    if (profile.preferred_university_ids?.length) setPreferredUniversityIds(profile.preferred_university_ids);
+  }
 
   useEffect(() => {
     void Promise.all([getActiveProvinces(), getActiveUniversities()]).then(([pRows, uRows]) => {
@@ -64,11 +64,8 @@ export const ProfilePage = () => {
   }, []);
 
   useEffect(() => {
-    if (!form.province_id) {
-      setAreas([]);
-      return;
-    }
-    void supabase
+    if (!form.province_id) return;
+    void firebaseData
       .from('areas')
       .select('id, name_ar, province_id, is_active')
       .limit(500)
@@ -306,7 +303,7 @@ export const ProfilePage = () => {
                 className="w-full rounded-xl border border-slate-200 p-3 text-sm"
               >
                 <option value="">اختر المنطقة</option>
-                {areas.map((item) => (
+                {(form.province_id ? areas : []).map((item) => (
                   <option key={item.id} value={item.id}>{item.name_ar}</option>
                 ))}
               </select>
